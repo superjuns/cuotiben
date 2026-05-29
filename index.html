@@ -453,7 +453,7 @@
 <div id="apiKeyModal" class="modal"><div class="modal-content"><h3>🔑 设置豆包视觉模型 API</h3><div class="form-group"><label>API Key</label><input type="password" id="apiKeyInput" placeholder="Bearer Token" value="ark-ff1505b4-a605-4fc0-9dca-3e9c0c1d690c-dbc4e"></div><div class="form-group"><label>对话模型API Endpoint</label><input type="text" id="apiEndpointInput" placeholder="https://ark.cn-beijing.volces.com/api/v3/chat/completions" value="https://ark.cn-beijing.volces.com/api/v3/chat/completions"></div><div class="form-group"><label>对话模型名称</label><input type="text" id="modelNameInput" placeholder="doubao-seed-2-0-pro-260215" value="doubao-seed-2-0-pro-260215"></div><div class="form-group"><label>图片生成模型名称</label><input type="text" id="imageGenModelInput" placeholder="doubao-seedream-5-0-260128" value="doubao-seedream-5-0-260128"></div><div style="font-size:0.7rem; margin-top:4px; color:#6c8dae;">使用豆包Seedream模型生成线稿配图</div><div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px;"><button id="cancelApiKey" class="btn-outline">取消</button><button id="saveApiKey" class="btn-primary">保存</button></div></div></div>
 
 <!-- 个人题库模态框 -->
-<div id="questionPoolModal" class="modal"><div class="modal-content question-pool-modal"><h3>📚 个人题库</h3><div id="poolContent" style="margin: 16px 0;"></div><div style="display: flex; gap: 10px; justify-content: space-between; align-items: center;"><div style="display: flex; gap: 8px;"><button id="selectAllBtn" class="btn-sm">全选</button><button id="importToDatabaseBtn" class="btn-sm" style="background:#e7f0ff; color:#1e6f9f;">🗄️ 导入数据库</button><button id="viewDatabaseBtn" class="btn-sm" title="查看数据库" style="background:#e7f0ff; font-size:1rem; padding:0.2rem 0.5rem;">📊</button></div><div><button id="generatePaperFromPoolBtn" class="btn-primary">生成试卷</button><button id="closePoolBtn" class="btn-outline">关闭</button></div></div></div></div>
+<div id="questionPoolModal" class="modal"><div class="modal-content question-pool-modal"><h3>📚 个人题库</h3><div id="poolContent" style="margin: 16px 0;"></div><div style="display: flex; gap: 10px; justify-content: space-between; align-items: center;"><div style="display: flex; gap: 8px;"><button id="selectAllBtn" class="btn-sm">全选</button><button id="importToDatabaseBtn" class="btn-sm" style="background:#e7f0ff; color:#1e6f9f;">导入</button><button id="viewDatabaseBtn" class="btn-sm" title="查看数据库" style="background:#e7f0ff; font-size:1rem; padding:0.2rem 0.5rem;">📊</button></div><div><button id="generatePaperFromPoolBtn" class="btn-primary">生成试卷</button><button id="closePoolBtn" class="btn-outline">关闭</button></div></div></div></div>
 
 <!-- 试卷预览模态框 -->
 <div id="paperModal" class="modal"><div class="modal-content paper-modal"><h3>📄 试卷预览</h3><div class="paper-content-wrapper"><div id="paperContent" class="paper-export"></div></div><div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;"><button id="exportPdfBtn" class="btn-primary">📑 导出 PDF</button><button id="closePaperBtn" class="btn-outline">关闭</button></div></div></div>
@@ -462,6 +462,8 @@
     const API_BASE = "https://quickform.cn/api/auotd4g9jy";
     const IMPORTED_KEY = "imported_questions";
     const CURRICULUM_KEY = "curriculum_framework";
+    const TEXTBOOK_API = "https://quickform.cn/api/r5cxh024se";
+    
     let mistakeList = [];
     let currentKeywordFilter = "", currentGradeVersionFilter = "", currentUnitFilter = "";
     let currentTagFilters = [];
@@ -920,7 +922,7 @@
                 if (response.ok) successCount++; else failCount++;
             } catch(err) { failCount++; }
         }
-        if (importToDatabaseBtn) { importToDatabaseBtn.disabled=false; importToDatabaseBtn.textContent="🗄️ 导入数据库"; }
+        if (importToDatabaseBtn) { importToDatabaseBtn.disabled=false; importToDatabaseBtn.textContent="导入"; }
         alert(`导入完成：成功 ${successCount} 题，失败 ${failCount} 题`);
     }
 
@@ -1024,14 +1026,103 @@
     ocrBtn.addEventListener("click",()=>performOCR(currentImageBase64));
 
     async function parseCurriculum(file){ const ext=file.name.split('.').pop().toLowerCase(); let raw=""; if(ext==='docx'){ const buf=await file.arrayBuffer(); const res=await mammoth.extractRawText({ arrayBuffer:buf }); raw=res.value; } else if(ext==='pdf'){ const buf=await file.arrayBuffer(); const pdf=await pdfjsLib.getDocument({ data:new Uint8Array(buf) }).promise; for(let i=1;i<=pdf.numPages;i++){ const page=await pdf.getPage(i); const txt=await page.getTextContent(); raw+=txt.items.map(t=>t.str).join(' ')+"\n"; } } else throw new Error("不支持"); const lines=raw.split(/\r?\n/); const fw={}; let cur=null; const gradeRe=/([一二三四五六]年级[上下]册)/; for(let line of lines){ line=line.trim(); if(!line) continue; if(gradeRe.test(line)){ cur=line.match(gradeRe)[1]; if(!fw[cur]) fw[cur]=[]; } else if(cur && (/第?[一二三四五六七八九十]+单元/.test(line) || /^[一二三四五六七八九十]+[、.]/.test(line))){ let u=line.replace(/^[一二三四五六七八九十]+[、.]\s*/,'').replace(/^第?[一二三四五六七八九十]+单元\s*/,''); if(u && !fw[cur].includes(u)) fw[cur].push(u); } } if(Object.keys(fw).length===0) throw new Error("未识别到年级单元结构"); return fw; }
+    
+    async function uploadTextbookToDatabase(framework) {
+        try {
+            const response = await fetch(TEXTBOOK_API, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    timestamp: new Date().toISOString(),
+                    framework: framework,
+                    note: "教材目录框架上传"
+                })
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("教材上传失败:", errorText);
+                return false;
+            }
+            console.log("教材已成功上传至数据库");
+            return true;
+        } catch (err) {
+            console.error("教材上传请求异常:", err);
+            return false;
+        }
+    }
+
+    async function deleteTextbookFromDatabase() {
+        try {
+            const response = await fetch(TEXTBOOK_API + "/clear", { method: "DELETE" });
+            if (!response.ok) {
+                console.warn("删除云端教材失败:", response.status);
+                return false;
+            }
+            console.log("云端教材已清空");
+            return true;
+        } catch (err) {
+            console.warn("删除云端教材请求异常:", err);
+            return false;
+        }
+    }
+
+    // 从数据库拉取已有的教材目录
+    async function fetchTextbookFromDatabase() {
+        try {
+            const response = await fetch(TEXTBOOK_API + "/all");
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            if (data && Array.isArray(data.submissions) && data.submissions.length > 0) {
+                // 按时间倒序排序，取最新的一条
+                const sorted = data.submissions.sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
+                const latest = sorted[0];
+                if (latest.framework && typeof latest.framework === "object") {
+                    curriculumFramework = latest.framework;
+                    localStorage.setItem(CURRICULUM_KEY, JSON.stringify(curriculumFramework));
+                    refreshGradeSelectors();
+                    if (textbookStatus) textbookStatus.innerText = `📚 已从云端加载 ${Object.keys(curriculumFramework).length} 个年级`;
+                    return;
+                }
+            }
+            // 无数据或数据格式异常，则保留原有本地数据
+            if (textbookStatus) textbookStatus.innerText = `本地教材目录 ${Object.keys(curriculumFramework).length} 个年级`;
+        } catch (err) {
+            console.warn("从数据库拉取教材目录失败:", err);
+            if (textbookStatus) textbookStatus.innerText = `本地教材目录 ${Object.keys(curriculumFramework).length} 个年级`;
+        }
+    }
+
     function refreshGradeSelectors(){ const grades=Object.keys(curriculumFramework); if(grades.length===0){ bookGradeSelect.innerHTML='<option>请先上传目录</option>'; unitSelect.innerHTML='<option>无数据</option>'; return; } bookGradeSelect.innerHTML='<option value="">请选择年级</option>'; grades.forEach(g=>{ const opt=document.createElement('option'); opt.value=g; opt.textContent=g; bookGradeSelect.appendChild(opt); }); if(grades.includes("一年级上册")) bookGradeSelect.value="一年级上册"; else if(grades.length) bookGradeSelect.value=grades[0]; updateUnitByGrade(bookGradeSelect.value); }
     function updateUnitByGrade(grade){ if(!grade||!curriculumFramework[grade]){ unitSelect.innerHTML='<option>无单元</option>'; return; } unitSelect.innerHTML='<option value="">请选择单元</option>'; curriculumFramework[grade].forEach(u=>{ const opt=document.createElement('option'); opt.value=u; opt.textContent=u; unitSelect.appendChild(opt); }); }
     bookGradeSelect.addEventListener("change",e=>updateUnitByGrade(e.target.value));
-    function saveFramework(){ localStorage.setItem(CURRICULUM_KEY,JSON.stringify(curriculumFramework)); refreshGradeSelectors(); if(textbookStatus) textbookStatus.innerText=`已加载 ${Object.keys(curriculumFramework).length} 个年级`; }
+    
+    async function saveFramework() { 
+        localStorage.setItem(CURRICULUM_KEY, JSON.stringify(curriculumFramework)); 
+        refreshGradeSelectors(); 
+        if(textbookStatus) textbookStatus.innerText = `✅ 已加载 ${Object.keys(curriculumFramework).length} 个年级`;
+        
+        if (textbookStatus) textbookStatus.innerText = "📤 正在上传至数据库...";
+        const uploadSuccess = await uploadTextbookToDatabase(curriculumFramework);
+        if (uploadSuccess && textbookStatus) {
+            textbookStatus.innerText = `✅ 已加载 ${Object.keys(curriculumFramework).length} 个年级 (已同步云端)`;
+        } else if (textbookStatus) {
+            textbookStatus.innerText = `⚠️ 本地加载成功，但云端同步失败，请重试`;
+        }
+    }
+    
     uploadTextbookBtn.onclick=()=>textbookModal.style.display="flex";
     textbookUploadArea.onclick=()=>textbookFileInput.click();
-    textbookFileInput.onchange=async e=>{ const file=e.target.files[0]; if(file && (file.type==="application/vnd.openxmlformats-officedocument.wordprocessingml.document"||file.type==="application/pdf")){ textbookStatus.innerText="解析中..."; try{ curriculumFramework=await parseCurriculum(file); saveFramework(); textbookModal.style.display="none"; textbookStatus.innerText="成功"; }catch(err){ textbookStatus.innerText="解析失败"; } textbookFileInput.value=''; } else alert("请上传docx或pdf"); };
-    deleteTextbookBtn.onclick=()=>{ if(confirm("删除目录？")){ curriculumFramework={}; localStorage.removeItem(CURRICULUM_KEY); refreshGradeSelectors(); if(textbookStatus) textbookStatus.innerText="目录已删除"; } };
+    textbookFileInput.onchange=async e=>{ const file=e.target.files[0]; if(file && (file.type==="application/vnd.openxmlformats-officedocument.wordprocessingml.document"||file.type==="application/pdf")){ textbookStatus.innerText="解析中..."; try{ curriculumFramework=await parseCurriculum(file); await saveFramework(); textbookModal.style.display="none"; }catch(err){ textbookStatus.innerText="解析失败"; } textbookFileInput.value=''; } else alert("请上传docx或pdf"); };
+    
+    deleteTextbookBtn.onclick = async () => { 
+        if(confirm("删除目录？将同时清空本地与云端教材框架")){ 
+            curriculumFramework={}; 
+            localStorage.removeItem(CURRICULUM_KEY); 
+            refreshGradeSelectors(); 
+            if(textbookStatus) textbookStatus.innerText="目录已删除";
+            await deleteTextbookFromDatabase();
+        } 
+    };
     cancelTextbook.onclick=()=>textbookModal.style.display="none";
 
     composePaperBtn.onclick=()=>{ buildImportedPool(); questionPoolModal.style.display="flex"; };
@@ -1060,9 +1151,12 @@
     
     async function fetchMistakesAndStats(){ await fetchMistakes(); await fetchAccuracyData(); }
     refreshDataBtn.onclick = ()=>{ fetchMistakesAndStats(); };
-
-    // 页面加载时自动刷新数据
-    loadImported(); refreshGradeSelectors(); fetchMistakesAndStats();
+    
+    // 启动：加载本地题库、白名单、错题数据，并拉取云端教材目录
+    loadImported(); 
+    refreshGradeSelectors(); 
+    fetchMistakesAndStats();
+    fetchTextbookFromDatabase();
 </script>
 </body>
 </html>
