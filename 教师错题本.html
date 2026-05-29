@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>智慧错题本 · 变式组卷 | 学情看板</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.4.2/mammoth.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #f0f7ff;
+            font-family: 'Segoe UI', 'Roboto', 'Noto Sans', system-ui, sans-serif;
+            padding: 1.5rem;
+            color: #1a2c3e;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            border-bottom: 3px solid #b0d4ff;
+            padding-bottom: 0.8rem;
+        }
+        .title-section h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1e6f9f, #3b8fc2);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .btn-icon {
+            background: white;
+            border: 1px solid #cde0ef;
+            border-radius: 40px;
+            padding: 0.4rem 0.9rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-icon:hover { background: #eef3fc; border-color: #1e6f9f; }
+        .btn-delete-icon {
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            cursor: pointer;
+            color: #c44;
+            padding: 0 4px;
+            border-radius: 30px;
+            transition: 0.1s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+        }
+        .btn-delete-icon:hover { background: #fee; color: #a00; }
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: 0.6rem;
+            margin-bottom: 0.8rem;
+            background: #ffffffcc;
+            backdrop-filter: blur(12px);
+            padding: 0.4rem 1rem;
+            border-radius: 48px;
+            border: 1px solid #e2edf7;
+            overflow-x: auto;
+        }
+        .toolbar > div:first-child { display: flex; gap: 8px; flex-shrink: 0; }
+        .filter-group { display: flex; gap: 6px; flex-wrap: nowrap; align-items: center; flex-shrink: 0; }
+        .filter-select {
+            background: white;
+            border: 1px solid #cde0ef;
+            border-radius: 40px;
+            padding: 4px 5px;
+            font-size: 0.7rem;
+            width: 58px;
+            outline: none;
+            cursor: pointer;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .search-wrapper { position: relative; display: inline-flex; align-items: center; flex-shrink: 0; }
+        .search-btn {
+            background: white;
+            border: 1px solid #cde0ef;
+            border-radius: 40px;
+            padding: 0.3rem 0.7rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .search-btn:hover { background: #eef3fc; border-color: #1e6f9f; }
+        .search-input {
+            background: white;
+            border: 1px solid #cde0ef;
+            border-radius: 40px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            width: 140px;
+            outline: none;
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 0;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .search-input.show { display: block; }
+        .refresh-btn {
+            background: white;
+            border: 1px solid #cde0ef;
+            border-radius: 40px;
+            padding: 0.4rem 0.9rem;
+            font-size: 1rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .refresh-btn:hover { background: #eef3fc; border-color: #1e6f9f; }
+        .btn-primary {
+            background: #1e6f9f;
+            border: none;
+            color: white;
+            padding: 0.4rem 1.2rem;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .btn-primary:hover { background: #0f5a85; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #b8d4f0;
+            padding: 0.4rem 1rem;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .btn-sm {
+            background: #f0f4fa;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+        .btn-sm-primary { background: #e7f0ff; color: #1e6f9f; }
+        .badge-container { position: relative; display: inline-flex; }
+        .badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #e34d4d;
+            color: white;
+            border-radius: 50%;
+            min-width: 18px;
+            height: 18px;
+            font-size: 11px;
+            text-align: center;
+            line-height: 18px;
+            padding: 0 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        /* 标签筛选栏 */
+        .tag-filter-bar {
+            background: #ffffffcc;
+            backdrop-filter: blur(8px);
+            border-radius: 40px;
+            padding: 0.5rem 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid #e2edf7;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .tag-filter-buttons { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+        .tag-filter-btn {
+            background: #f0f4fa;
+            border: 1px solid #cde0ef;
+            border-radius: 30px;
+            padding: 0.2rem 0.7rem;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #2c6e9e;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .tag-filter-btn.active {
+            background: #e7f0ff;
+            border-color: #1e6f9f;
+            color: #1e6f9f;
+        }
+        .tag-filter-btn.active .check-mark { font-weight: bold; color: #1e6f9f; }
+        .tag-filter-btn:hover { background: #d4e5f5; }
+        .check-mark { font-size: 0.65rem; }
+        /* 错题卡片 */
+        .mistake-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.2rem;
+            margin-top: 0.5rem;
+        }
+        @media (max-width: 800px) { .mistake-grid { grid-template-columns: 1fr; } }
+        .mistake-card {
+            background: white;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid #eef2f8;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .card-header {
+            padding: 0.8rem 1rem 0.3rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            border-bottom: 1px solid #f0f4fa;
+        }
+        .card-header > div:first-child { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; flex: 1; }
+        .drag-handle {
+            cursor: grab;
+            font-size: 1.1rem;
+            color: #8aa0b5;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+        }
+        .drag-handle:active { cursor: grabbing; }
+        .tag-group { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+        .tag {
+            background: #eef2ff;
+            color: #2c6e9e;
+            font-size: 0.65rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 30px;
+            white-space: nowrap;
+        }
+        .accuracy-container {
+            padding: 0.6rem 1rem;
+            background: #f9fafc;
+            border-bottom: 1px solid #f0f4fa;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .pie-chart-wrapper {
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .pie-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .accuracy-text {
+            flex: 1;
+            white-space: nowrap;
+            overflow-x: auto;
+            font-size: 0.75rem;
+        }
+        .accuracy-number {
+            font-weight: 600;
+            display: inline;
+            margin-right: 8px;
+        }
+        .learning-count {
+            display: inline;
+            color: #8aa0b5;
+        }
+        .content-area { padding: 0.8rem 1rem; flex: 1; }
+        .mistake-text {
+            font-size: 0.9rem;
+            line-height: 1.45;
+            background: #fafdff;
+            padding: 0.5rem 0.7rem;
+            border-radius: 18px;
+            border-left: 3px solid #8fcbff;
+        }
+        .image-container {
+            background: #f9fafc;
+            border-radius: 20px;
+            display: flex;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .mistake-img { max-width: 100%; max-height: 180px; object-fit: contain; border-radius: 16px; }
+        .card-footer {
+            padding: 0.6rem 1rem 0.8rem;
+            border-top: 1px solid #edf2f7;
+            display: flex;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .total-count-footer {
+            text-align: center;
+            font-size: 0.7rem;
+            color: #8aa0b5;
+            margin-top: 1rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid #e2edf7;
+        }
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(10,20,30,0.85); backdrop-filter:blur(8px); justify-content:center; align-items:center; z-index:2000; }
+        .modal-content { background:white; border-radius:28px; max-width:550px; width:90%; padding:1.2rem; }
+        .form-group { margin-bottom:0.8rem; }
+        .form-group label { font-weight:600; margin-bottom:5px; font-size:0.85rem; display:block; }
+        .form-group input, .form-group textarea, .form-group select { width:100%; padding:8px 12px; border:1px solid #cde0ef; border-radius:20px; font-size:0.85rem; }
+        .upload-area { border:2px dashed #cde0ef; border-radius:20px; padding:1rem; text-align:center; margin:0.5rem 0; cursor:pointer; }
+        .image-preview { max-width:100%; max-height:150px; margin:8px 0; border-radius:16px; display:none; object-fit:contain; }
+        .crop-container { margin:1rem 0; text-align:center; }
+        .crop-image { max-width:100%; max-height:400px; display:none; }
+        .crop-buttons { display:flex; gap:10px; justify-content:center; margin:10px 0; }
+        .tag-input-container {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            border: 1px solid #cde0ef;
+            border-radius: 24px;
+            background: white;
+            min-height: 42px;
+        }
+        .tag-item {
+            background: #eef2ff;
+            padding: 4px 10px;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #1e6f9f;
+        }
+        .tag-item button { background:none; border:none; cursor:pointer; font-size:0.8rem; color:#888; }
+        .tag-item button:hover { color:#c44; }
+        .tag-input { border:none; outline:none; flex:1; min-width:80px; padding:4px 0; font-size:0.8rem; }
+        .empty-state { text-align:center; padding:2rem; background:white; border-radius:40px; }
+        .inline-select-group { display:flex; gap:8px; align-items:center; }
+        .inline-select-group select { flex:1; }
+        .delete-icon-row { display:flex; justify-content:flex-end; margin-top:5px; }
+        .ocr-btn { background:none; border:1px solid #cde0ef; font-size:0.7rem; padding:4px 10px; border-radius:30px; cursor:pointer; margin-left:8px; }
+        .ocr-btn:hover { background:#eef2ff; }
+        .variant-config-panel { background:#f8faff; border-radius:20px; margin:0 10px 10px 10px; padding:10px; border:1px solid #e2edf7; }
+        .variant-inline { margin-top:8px; padding-top:8px; border-top:1px dashed #dce5f0; background:#fafdff; border-radius:18px; margin:0 10px 10px 10px; }
+        .variant-header-inline { display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:#f0f7fc; border-radius:24px; margin-bottom:6px; font-size:0.7rem; }
+        .variant-questions { padding:6px 10px; font-size:0.8rem; line-height:1.45; background:white; border-radius:16px; }
+        .variant-question-with-image { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid #edf2f7; }
+        .variant-question-text { font-size:0.85rem; line-height:1.5; }
+        .variant-answer-text { margin-top:6px; font-size:0.75rem; color:#2c6e9e; background:#f0f7fc; padding:4px 8px; border-radius:12px; display:inline-block; }
+        .variant-question-image { margin-top:6px; text-align:center; background:#fafdff; border-radius:16px; padding:8px; border:1px solid #eef2f8; }
+        .variant-question-image img { max-width:100%; max-height:200px; object-fit:contain; border-radius:12px; cursor:pointer; }
+        .image-actions { margin-top:6px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+        .generate-img-btn, .import-btn, .hide-btn, .regenerate-btn, .copy-all-variant { background:none; border:1px solid #cde0ef; font-size:0.6rem; color:#1e6f9f; cursor:pointer; padding:2px 8px; border-radius:30px; }
+        .generate-img-btn:hover, .import-btn:hover, .hide-btn:hover, .regenerate-btn:hover, .copy-all-variant:hover { background:#eef2ff; }
+        .spinner { width:24px; height:24px; border:2px solid #e0eefc; border-top-color:#1e6f9f; border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .question-pool-modal { max-width:800px; width:90%; max-height:80vh; overflow-y:auto; }
+        .pool-item { padding:6px 0; display:flex; align-items:flex-start; gap:8px; border-bottom:1px solid #f0f4fa; }
+        .pool-item-content { flex:1; font-size:0.85rem; }
+        .pool-item-img { max-width:100px; max-height:80px; margin-top:4px; border-radius:8px; }
+        .remove-import-btn { background:none; border:none; color:#c44; cursor:pointer; font-size:0.7rem; margin-left:8px; }
+        .paper-modal { max-width:800px; width:90%; max-height:85vh; overflow-y:auto; padding:0; }
+        .paper-content-wrapper { background:#e9ecef; padding:20px; display:flex; justify-content:center; align-items:flex-start; min-height:500px; }
+        .paper-export { font-family:'Times New Roman', SimSun, '宋体', serif; width:210mm; min-height:297mm; background:white; margin:0 auto; padding:20mm; box-shadow:0 0 10px rgba(0,0,0,0.1); box-sizing:border-box; }
+        .export-title { text-align:center; font-size:22pt; font-weight:bold; margin-bottom:20px; }
+        .export-info { display:flex; justify-content:space-between; margin-bottom:30px; font-size:14pt; border-bottom:1px solid #ccc; padding-bottom:10px; }
+        .export-question { margin-bottom:20px; }
+        .export-question-title { font-weight:600; font-size:14pt; margin-bottom:8px; color:black; }
+        .export-question-content { font-size:12pt; line-height:1.5; }
+        .export-question-image { max-width:100%; max-height:200px; margin-top:8px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="title-section">
+            <h1>📘 教师错题本 · 变式组卷</h1>
+            <p style="font-size:0.8rem;">OCR识别 | 变式生成 | 学情看板 | 组卷导出PDF</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-icon" id="uploadTextbookBtn" title="上传教材目录(Word/PDF)">📚</button>
+            <button class="btn-icon" id="apiKeyBtn" title="API Key">🔑</button>
+            <button class="btn-icon" id="databaseBtn" title="后端数据">🗄️</button>
+            <button id="refreshDataBtn" class="refresh-btn" title="刷新错题数据">🔄</button>
+        </div>
+    </div>
+    <div class="toolbar">
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-icon" id="addMistakeBtn" title="收集错题">➕</button>
+            <div class="badge-container">
+                <button class="btn-icon" id="composePaperBtn" title="组卷题库">📋</button>
+                <span id="importBadge" class="badge" style="display: none;">0</span>
+            </div>
+        </div>
+        <div class="filter-group">
+            <select id="gradeVersionFilter" class="filter-select"><option value="">全年级</option></select>
+            <select id="unitFilter" class="filter-select"><option value="">全单元</option></select>
+            <div class="search-wrapper">
+                <button id="searchBtn" class="search-btn">🔍</button>
+                <input type="text" id="searchInput" class="search-input" placeholder="输入关键词...">
+            </div>
+        </div>
+    </div>
+    <!-- 标签筛选栏 -->
+    <div class="tag-filter-bar" id="tagFilterBar">
+        <div class="tag-filter-buttons" id="tagFilterButtons"></div>
+    </div>
+    <div id="mistakesContainer" class="mistake-grid"></div>
+    <div id="totalCountFooter" class="total-count-footer"></div>
+</div>
+
+<!-- 收集错题模态框 -->
+<div id="uploadModal" class="modal"><div class="modal-content"><h3>📸 收集新错题</h3><div class="upload-area" id="uploadArea"><div>📷 点击上传 / Ctrl+V 粘贴截图</div><input type="file" id="fileInput" accept="image/*" style="display:none"><img id="previewImg" class="image-preview"></div><div id="cropSection" style="display:none;"><div class="crop-container"><img id="cropImage" class="crop-image" alt="待裁剪图片"></div><div class="crop-buttons"><button id="cropConfirmBtn" class="btn-sm btn-sm-primary">✓ 应用裁剪</button><button id="cropCancelBtn" class="btn-sm">✗ 取消裁剪</button></div></div><div class="form-group"><label>错题描述</label><div style="display:flex; align-items:center; gap:8px;"><textarea id="mistakeDesc" rows="2" placeholder="输入错题文本..." style="flex:1;"></textarea><button type="button" id="ocrBtn" class="ocr-btn" style="white-space:nowrap;">🔍 OCR识别</button></div><div id="ocrStatus" style="font-size:0.7rem; color:#6c8dae; margin-top:4px;"></div></div><div class="form-group"><label>🏷️ 自定义标签 (点击添加，支持回车)</label><div class="tag-input-container" id="tagContainer"></div></div><div class="form-group"><label>教材位置</label><div class="inline-select-group"><select id="bookGradeSelect" style="flex:1;"><option value="">请先上传教材目录</option></select><select id="unitSelect" style="flex:2;"><option value="">请先选择年级</option></select></div></div><div style="display: flex; gap: 10px; justify-content: flex-end;"><button id="cancelUpload" class="btn-outline">取消</button><button id="submitMistake" class="btn-primary">提交</button></div></div></div>
+
+<!-- 教材上传模态框 -->
+<div id="textbookModal" class="modal"><div class="modal-content"><h3>📚 上传教材目录 (Word / PDF)</h3><div class="form-group"><label>上传目录文件 (.docx 或 .pdf)</label><div class="upload-area" id="textbookUploadArea"><div>📄 点击上传 .docx 或 .pdf 文件</div><input type="file" id="textbookFileInput" accept=".docx,.pdf"></div></div><div id="textbookStatus" style="font-size:0.75rem; margin:8px 0;"></div><div class="delete-icon-row"><button id="deleteTextbookBtn" class="btn-delete-icon" title="删除当前目录">✕</button></div><div style="display: flex; gap: 10px; justify-content: flex-end;"><button id="cancelTextbook" class="btn-outline">关闭</button></div></div></div>
+
+<!-- API Key 设置 -->
+<div id="apiKeyModal" class="modal"><div class="modal-content"><h3>🔑 设置豆包视觉模型 API</h3><div class="form-group"><label>API Key</label><input type="password" id="apiKeyInput" placeholder="Bearer Token" value="ark-ff1505b4-a605-4fc0-9dca-3e9c0c1d690c-dbc4e"></div><div class="form-group"><label>对话模型API Endpoint</label><input type="text" id="apiEndpointInput" placeholder="https://ark.cn-beijing.volces.com/api/v3/chat/completions" value="https://ark.cn-beijing.volces.com/api/v3/chat/completions"></div><div class="form-group"><label>对话模型名称</label><input type="text" id="modelNameInput" placeholder="doubao-seed-2-0-pro-260215" value="doubao-seed-2-0-pro-260215"></div><div class="form-group"><label>图片生成模型名称</label><input type="text" id="imageGenModelInput" placeholder="doubao-seedream-5-0-260128" value="doubao-seedream-5-0-260128"></div><div style="font-size:0.7rem; margin-top:4px; color:#6c8dae;">使用豆包Seedream模型生成线稿配图</div><div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px;"><button id="cancelApiKey" class="btn-outline">取消</button><button id="saveApiKey" class="btn-primary">保存</button></div></div></div>
+
+<!-- 个人题库模态框 -->
+<div id="questionPoolModal" class="modal"><div class="modal-content question-pool-modal"><h3>📚 个人题库</h3><div id="poolContent" style="margin: 16px 0;"></div><div style="display: flex; gap: 10px; justify-content: space-between; align-items: center;"><div style="display: flex; gap: 8px;"><button id="selectAllBtn" class="btn-sm">全选</button><button id="importToDatabaseBtn" class="btn-sm" style="background:#e7f0ff; color:#1e6f9f;">🗄️ 导入数据库</button><button id="viewDatabaseBtn" class="btn-sm" title="查看数据库" style="background:#e7f0ff; font-size:1rem; padding:0.2rem 0.5rem;">📊</button></div><div><button id="generatePaperFromPoolBtn" class="btn-primary">生成试卷</button><button id="closePoolBtn" class="btn-outline">关闭</button></div></div></div></div>
+
+<!-- 试卷预览模态框 -->
+<div id="paperModal" class="modal"><div class="modal-content paper-modal"><h3>📄 试卷预览</h3><div class="paper-content-wrapper"><div id="paperContent" class="paper-export"></div></div><div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;"><button id="exportPdfBtn" class="btn-primary">📑 导出 PDF</button><button id="closePaperBtn" class="btn-outline">关闭</button></div></div></div>
+
+<script>
+    const API_BASE = "https://quickform.cn/api/auotd4g9jy";
+    const IMPORTED_KEY = "imported_questions";
+    const CURRICULUM_KEY = "curriculum_framework";
+    let mistakeList = [];
+    let currentKeywordFilter = "", currentGradeVersionFilter = "", currentUnitFilter = "";
+    let currentTagFilters = [];
+    let sortableInstance = null, currentPaperHtml = "";
+    let importedQuestions = [];
+    let curriculumFramework = JSON.parse(localStorage.getItem(CURRICULUM_KEY) || "{}");
+    let doubaoApiKey = localStorage.getItem("doubao_api_key") || "ark-ff1505b4-a605-4fc0-9dca-3e9c0c1d690c-dbc4e";
+    let doubaoChatEndpoint = localStorage.getItem("doubao_endpoint") || "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
+    let doubaoChatModel = localStorage.getItem("doubao_model") || "doubao-seed-2-0-pro-260215";
+    let doubaoImageGenModel = localStorage.getItem("doubao_image_gen_model") || "doubao-seedream-5-0-260128";
+    let cropper = null;
+    let currentImageBase64 = "";
+    let currentTags = [];
+    let accuracyStats = {};
+
+    // DOM 元素
+    const container = document.getElementById("mistakesContainer");
+    const totalCountFooter = document.getElementById("totalCountFooter");
+    const addBtn = document.getElementById("addMistakeBtn");
+    const composePaperBtn = document.getElementById("composePaperBtn");
+    const importBadge = document.getElementById("importBadge");
+    const refreshDataBtn = document.getElementById("refreshDataBtn");
+    const uploadModal = document.getElementById("uploadModal");
+    const cancelUpload = document.getElementById("cancelUpload");
+    const submitMistakeBtn = document.getElementById("submitMistake");
+    const fileInput = document.getElementById("fileInput");
+    const uploadArea = document.getElementById("uploadArea");
+    const previewImg = document.getElementById("previewImg");
+    const mistakeDesc = document.getElementById("mistakeDesc");
+    const ocrBtn = document.getElementById("ocrBtn");
+    const ocrStatus = document.getElementById("ocrStatus");
+    const searchBtn = document.getElementById("searchBtn");
+    const searchInput = document.getElementById("searchInput");
+    const gradeVersionFilter = document.getElementById("gradeVersionFilter");
+    const unitFilter = document.getElementById("unitFilter");
+    const databaseBtn = document.getElementById("databaseBtn");
+    const apiKeyBtn = document.getElementById("apiKeyBtn");
+    const apiKeyModal = document.getElementById("apiKeyModal");
+    const apiKeyInput = document.getElementById("apiKeyInput");
+    const apiEndpointInput = document.getElementById("apiEndpointInput");
+    const modelNameInput = document.getElementById("modelNameInput");
+    const imageGenModelInput = document.getElementById("imageGenModelInput");
+    const saveApiKey = document.getElementById("saveApiKey");
+    const cancelApiKey = document.getElementById("cancelApiKey");
+    const uploadTextbookBtn = document.getElementById("uploadTextbookBtn");
+    const textbookModal = document.getElementById("textbookModal");
+    const textbookUploadArea = document.getElementById("textbookUploadArea");
+    const textbookFileInput = document.getElementById("textbookFileInput");
+    const cancelTextbook = document.getElementById("cancelTextbook");
+    const textbookStatus = document.getElementById("textbookStatus");
+    const deleteTextbookBtn = document.getElementById("deleteTextbookBtn");
+    const bookGradeSelect = document.getElementById("bookGradeSelect");
+    const unitSelect = document.getElementById("unitSelect");
+    const cropSection = document.getElementById("cropSection");
+    const cropImage = document.getElementById("cropImage");
+    const cropConfirmBtn = document.getElementById("cropConfirmBtn");
+    const cropCancelBtn = document.getElementById("cropCancelBtn");
+    const questionPoolModal = document.getElementById("questionPoolModal");
+    const poolContent = document.getElementById("poolContent");
+    const selectAllBtn = document.getElementById("selectAllBtn");
+    const generatePaperFromPoolBtn = document.getElementById("generatePaperFromPoolBtn");
+    const closePoolBtn = document.getElementById("closePoolBtn");
+    const paperModal = document.getElementById("paperModal");
+    const paperContent = document.getElementById("paperContent");
+    const exportPdfBtn = document.getElementById("exportPdfBtn");
+    const closePaperBtn = document.getElementById("closePaperBtn");
+    const tagContainer = document.getElementById("tagContainer");
+    const tagFilterButtonsDiv = document.getElementById("tagFilterButtons");
+    const importToDatabaseBtn = document.getElementById("importToDatabaseBtn");
+    const viewDatabaseBtn = document.getElementById("viewDatabaseBtn");
+
+    function escapeHtml(str) { return str ? str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : (m === '<' ? '&lt;' : '&gt;')) : ''; }
+
+    function generateOriginalId(question, gradeVersion = '', unit = '') {
+        const normalizedText = (question || "").replace(/\s+/g, '').trim().toLowerCase();
+        let baseId = normalizedText + (gradeVersion || '') + (unit || '');
+        let hash = 0;
+        for (let i = 0; i < baseId.length; i++) {
+            hash = ((hash << 5) - hash) + baseId.charCodeAt(i);
+            hash |= 0;
+        }
+        return "mist_" + Math.abs(hash).toString(16);
+    }
+
+    async function fetchAccuracyData() {
+        try {
+            const res = await fetch("https://quickform.cn/api/srnos93opr/all");
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            const submissions = data.submissions || [];
+            const stats = {};
+            for (const sub of submissions) {
+                const feedbacks = sub.feedback || [];
+                for (const fb of feedbacks) {
+                    const origId = fb.originalId;
+                    if (!origId) continue;
+                    if (!stats[origId]) stats[origId] = { correct: 0, total: 0 };
+                    stats[origId].total++;
+                    if (fb.isCorrect === true) stats[origId].correct++;
+                }
+            }
+            accuracyStats = stats;
+        } catch(e) { console.warn("正确率获取失败", e); accuracyStats = {}; }
+    }
+
+    function getAccuracyForMistake(item) {
+        let targetId = item.originalId;
+        if (!targetId) targetId = generateOriginalId(item.text, item.gradeVersion, item.unit);
+        if (accuracyStats[targetId]) {
+            const stat = accuracyStats[targetId];
+            const rate = stat.total === 0 ? 0 : (stat.correct / stat.total * 100);
+            return { rate: Math.round(rate), total: stat.total, correct: stat.correct };
+        }
+        return null;
+    }
+
+    function drawPieChart(canvas, correctRate, totalCount) {
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const size = canvas.width;
+        const center = size / 2;
+        const radius = size * 0.38;
+        const angle = (correctRate / 100) * Math.PI * 2;
+        ctx.clearRect(0, 0, size, size);
+        ctx.beginPath();
+        ctx.arc(center, center, radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#e9edf2';
+        ctx.fill();
+        let fillColor = '#2c9e6f';
+        if (correctRate < 60) fillColor = '#e94f4f';
+        else if (correctRate < 80) fillColor = '#ffae42';
+        ctx.beginPath();
+        ctx.moveTo(center, center);
+        ctx.arc(center, center, radius, -Math.PI / 2, -Math.PI / 2 + angle);
+        ctx.closePath();
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(center, center, radius * 0.55, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+    }
+
+    async function fetchMistakes() {
+        try {
+            const res = await fetch(API_BASE+"/all");
+            if(!res.ok) throw new Error();
+            const data = await res.json();
+            if(data && Array.isArray(data.submissions)) {
+                mistakeList = data.submissions.map((sub,idx)=>({
+                    id: sub.id || `m_${Date.now()}_${idx}`,
+                    text: sub.text || sub.content || (sub.has_image?"图片错题":""),
+                    image_base64: sub.image_base64 || "",
+                    has_image: !!(sub.image_base64 && sub.image_base64.length>50),
+                    tags: sub.tags ? (Array.isArray(sub.tags)?sub.tags:sub.tags.split(",")) : [],
+                    variants: null,
+                    gradeVersion: sub.gradeVersion || null,
+                    unit: sub.unit || null,
+                    originalId: sub.originalId || null
+                }));
+            } else mistakeList = [];
+            updateFilterOptions();
+            renderTagFilters();
+            applyFilterAndRender();
+            initSortable();
+        } catch(e) { container.innerHTML='<div class="empty-state">加载失败，请检查网络</div>'; }
+    }
+
+    async function addMistake(text, img, tags, gv, unit) {
+        const finalTags=[...tags];
+        if(gv && !finalTags.includes(gv)) finalTags.push(gv);
+        if(unit && !finalTags.includes(unit)) finalTags.push(unit);
+        const originalId = generateOriginalId(text, gv, unit);
+        const fd=new FormData();
+        fd.append("text",text);
+        fd.append("has_image",img?"true":"false");
+        if(img) fd.append("image_base64",img);
+        fd.append("tags",finalTags.join(","));
+        fd.append("gradeVersion",gv);
+        fd.append("unit",unit);
+        fd.append("originalId", originalId);
+        try{
+            await fetch(API_BASE,{method:"POST",body:fd});
+            return true;
+        } catch(e){
+            mistakeList.unshift({ id:Date.now().toString(), text, image_base64:img||"", has_image:!!img, tags:finalTags, variants:null, gradeVersion:gv, unit, originalId });
+            updateFilterOptions(); renderTagFilters(); applyFilterAndRender(); initSortable();
+            return false;
+        }
+    }
+
+    function initSortable() {
+        const grid=document.getElementById("mistakesContainer");
+        if(sortableInstance) sortableInstance.destroy();
+        sortableInstance = new Sortable(grid, { animation:150, handle:'.drag-handle', onEnd:()=>{
+            const order=[]; grid.querySelectorAll('.mistake-card').forEach(card=>{ const found=mistakeList.find(m=>m.id===card.dataset.id); if(found) order.push(found); });
+            if(order.length===mistakeList.length) mistakeList=order;
+        }});
+    }
+
+    function updateFilterOptions() {
+        const gs=new Set(), us=new Set();
+        mistakeList.forEach(i=>{ if(i.gradeVersion) gs.add(i.gradeVersion); if(i.unit) us.add(i.unit); });
+        gradeVersionFilter.innerHTML='<option value="">全年级</option>';
+        [...gs].sort().forEach(g=>{ const opt=document.createElement('option'); opt.value=g; opt.textContent=g; gradeVersionFilter.appendChild(opt); });
+        unitFilter.innerHTML='<option value="">全单元</option>';
+        [...us].sort().forEach(u=>{ const opt=document.createElement('option'); opt.value=u; opt.textContent=u; unitFilter.appendChild(opt); });
+    }
+
+    function applyFilterAndRender() {
+        let f=[...mistakeList];
+        if(currentGradeVersionFilter) f=f.filter(i=>i.gradeVersion===currentGradeVersionFilter);
+        if(currentUnitFilter) f=f.filter(i=>i.unit===currentUnitFilter);
+        if(currentKeywordFilter) f=f.filter(i=>i.text.toLowerCase().includes(currentKeywordFilter.toLowerCase()));
+        if(currentTagFilters.length) f=f.filter(item=>{ const tags=item.tags||[]; return currentTagFilters.some(tag=>tags.includes(tag)); });
+        totalCountFooter.innerText=`共 ${f.length} 道错题`;
+        renderByView(f);
+    }
+
+    function renderByView(data) {
+        if(!container) return;
+        if(data.length===0){ container.innerHTML='<div class="empty-state">📭 暂无错题</div>'; return; }
+        let html='';
+        data.forEach(item=>{
+            const otherTags = (item.tags || []).filter(t => t !== item.gradeVersion && t !== item.unit);
+            const variantHtml = item.variants ? renderVariantInline(item.id, item.variants) : '';
+            const acc = getAccuracyForMistake(item);
+            let accuracyHtml = '';
+            if(acc && acc.total>0){
+                const rate = acc.rate;
+                const fractionText = `(${acc.correct}/${acc.total})`;
+                accuracyHtml = `<div class="accuracy-container">
+                    <div class="pie-chart-wrapper"><canvas class="pie-canvas" width="40" height="40" data-rate="${rate}" data-total="${acc.total}"></canvas></div>
+                    <div class="accuracy-text"><span class="accuracy-number">正确率 ${rate}%</span><span class="learning-count">${fractionText}</span></div>
+                </div>`;
+            } else {
+                accuracyHtml = `<div class="accuracy-container">
+                    <div class="pie-chart-wrapper"><canvas class="pie-canvas" width="40" height="40" data-rate="0" data-total="0"></canvas></div>
+                    <div class="accuracy-text"><span class="accuracy-number">暂无学情数据</span><span class="learning-count">✨ 学生作答后自动统计</span></div>
+                </div>`;
+            }
+            html+=`<div class="mistake-card" data-id="${item.id}"><div class="card-header"><div><span class="drag-handle">☰</span><div class="tag-group">${otherTags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div></div></div>${accuracyHtml}<div class="content-area">${item.has_image?`<div class="image-container"><img class="mistake-img" src="${item.image_base64}" onclick="openImageModal('${item.image_base64}')"></div>`:`<div class="mistake-text">📝 ${escapeHtml(item.text)}</div>`}</div><div class="card-footer"><button class="btn-sm import-original-btn" data-id="${item.id}">📥 导入</button><button class="btn-sm btn-sm-primary variant-trigger" data-id="${item.id}" data-text="${escapeHtml(item.text).replace(/'/g,"\\'")}">✨ 变式</button></div>${variantHtml}</div>`;
+        });
+        container.innerHTML=html;
+        document.querySelectorAll('.pie-canvas').forEach(canvas => {
+            const rate = parseInt(canvas.getAttribute('data-rate')) || 0;
+            const total = parseInt(canvas.getAttribute('data-total')) || 0;
+            drawPieChart(canvas, rate, total);
+        });
+        document.querySelectorAll('.import-original-btn').forEach(btn=>btn.addEventListener('click',e=>{ e.stopPropagation(); const cardId=btn.dataset.id; importOriginalQuestion(cardId); }));
+        document.querySelectorAll('.variant-trigger').forEach(btn=>{ btn.addEventListener('click',e=>{ const id=btn.dataset.id, text=btn.dataset.text; const cardDiv = document.querySelector(`.mistake-card[data-id="${id}"]`); if(cardDiv.querySelector('.variant-config-panel')){ cardDiv.querySelector('.variant-config-panel').remove(); return; } const oldVar = cardDiv.querySelector('.variant-inline'); if(oldVar && !oldVar.querySelector('.variant-config-panel')) oldVar.remove(); const footer = cardDiv.querySelector('.card-footer'); footer.insertAdjacentHTML('afterend', renderConfigPanel(id, text)); bindConfigEvents(id, text); }); });
+        document.querySelectorAll('.hide-btn').forEach(btn=>btn.addEventListener('click',e=>{ const id=btn.dataset.id, action=btn.dataset.action; const idx=mistakeList.findIndex(m=>m.id===id); if(idx!==-1 && mistakeList[idx].variants){ if(action==='hide') mistakeList[idx].variants.visible=false; else mistakeList[idx].variants.visible=true; applyFilterAndRender(); } }));
+        document.querySelectorAll('.regenerate-btn').forEach(btn=>btn.addEventListener('click',async e=>{ const id=btn.dataset.id; const idx=mistakeList.findIndex(m=>m.id===id); if(idx!==-1) mistakeList[idx].variants=null; applyFilterAndRender(); document.querySelector(`.variant-trigger[data-id="${id}"]`)?.click(); }));
+        document.querySelectorAll('.copy-all-variant').forEach(btn=>btn.addEventListener('click',e=>{ e.stopPropagation(); navigator.clipboard.writeText(btn.dataset.fulltext); alert("已复制全部"); }));
+        document.querySelectorAll('.generate-img-btn').forEach(btn=>btn.addEventListener('click',async e=>{ const cardId=btn.dataset.card, idx=parseInt(btn.dataset.index); const original=btn.textContent; btn.textContent="⏳生成..."; btn.disabled=true; try{ await generateSingleIllustration(cardId, idx); }catch(err){ alert("生成配图失败"); }finally{ btn.textContent=original; btn.disabled=false; } }));
+        document.querySelectorAll('.import-btn').forEach(btn=>btn.addEventListener('click',e=>{ const cardId=btn.dataset.card, idx=parseInt(btn.dataset.index); importVariantQuestion(cardId, idx); }));
+    }
+
+    function renderConfigPanel(cardId, originalText) {
+        return `<div class="variant-config-panel" data-id="${cardId}"><div class="config-row"><label>变化方式</label><div class="checkbox-group" id="modes-${cardId}"><label><input type="checkbox" value="情境转换"> 情境转换</label><label><input type="checkbox" value="数据修改"> 数据修改</label><label><input type="checkbox" value="跨学科"> 跨学科</label><label><input type="checkbox" value="提升难度"> 提升难度</label><label><input type="checkbox" value="降低难度"> 降低难度</label><label><input type="checkbox" value="综合变化"> 综合变化</label><label><input type="checkbox" value="随机选择" checked> 随机选择</label></div></div><div class="config-row"><label>题型</label><select id="type-${cardId}"><option>选择题</option><option>填空题</option><option>应用题</option></select></div><div class="config-buttons"><button class="btn-sm cancel-config" data-id="${cardId}">取消</button><button class="btn-sm btn-sm-primary confirm-generate" data-id="${cardId}" data-text="${escapeHtml(originalText).replace(/'/g, "\\'")}">生成</button></div></div>`;
+    }
+
+    function bindConfigEvents(cardId, originalText) {
+        const confirmBtn = document.querySelector(`.confirm-generate[data-id="${cardId}"]`);
+        const cancelBtn = document.querySelector(`.cancel-config[data-id="${cardId}"]`);
+        const chkGroup = document.getElementById(`modes-${cardId}`);
+        if(chkGroup){
+            const randomChk = chkGroup.querySelector('input[value="随机选择"]');
+            const others = chkGroup.querySelectorAll('input[value]:not([value="随机选择"])');
+            others.forEach(cb=>cb.addEventListener('change',()=>{ if(cb.checked && randomChk) randomChk.checked=false; }));
+            if(randomChk) randomChk.addEventListener('change',()=>{ if(randomChk.checked) others.forEach(cb=>{ if(cb.checked) cb.checked=false; }); });
+        }
+        if(confirmBtn) confirmBtn.addEventListener('click', async ()=>{
+            const selected=Array.from(document.querySelectorAll(`#modes-${cardId} input:checked`)).map(cb=>cb.value);
+            if(selected.length===0){ alert("请选择变化方式"); return; }
+            const qType=document.getElementById(`type-${cardId}`).value;
+            const panel=document.querySelector(`.variant-config-panel[data-id="${cardId}"]`);
+            if(panel) panel.remove();
+            const cardDiv=document.querySelector(`.mistake-card[data-id="${cardId}"]`);
+            const loadingDiv=document.createElement('div'); loadingDiv.className='variant-inline'; loadingDiv.innerHTML='<div class="variant-header-inline"><span>🤖 生成变式...</span><div class="spinner"></div></div>';
+            cardDiv.appendChild(loadingDiv);
+            try{
+                await generateVariantsForCard(cardId, originalText, selected, qType);
+                loadingDiv.remove();
+                applyFilterAndRender();
+            }catch(err){
+                loadingDiv.innerHTML=`<div class="variant-header-inline"><span style="color:red;">❌ ${err.message}</span></div>`;
+                setTimeout(()=>loadingDiv.remove(),2000);
+            }
+        });
+        if(cancelBtn) cancelBtn.addEventListener('click',()=>document.querySelector(`.variant-config-panel[data-id="${cardId}"]`)?.remove());
+    }
+
+    async function generateVariantsForCard(cardId, originalText, modes, qType) {
+        const card = mistakeList.find(m=>m.id===cardId);
+        if(!card) throw new Error("卡片不存在");
+        let effectiveText = originalText || card.text;
+        let targetGradeNum = "1";
+        for(let tag of card.tags){ const m=tag.match(/[一二三四五六]年级/); if(m) { targetGradeNum = { "一":"1","二":"2","三":"3","四":"4","五":"5","六":"6" }[m[0][0]] || "1"; break; } }
+        const gradeName = ["一年级","二年级","三年级","四年级","五年级","六年级"][parseInt(targetGradeNum)-1] || "一年级";
+        let finalModes = [...modes];
+        if(modes.includes("随机选择")){
+            const other=modes.filter(m=>m!=="随机选择"&&m!=="综合变化");
+            if(other.length){
+                const cnt=Math.floor(Math.random()*Math.min(2,other.length))+1;
+                const shuffled=[...other];
+                for(let i=shuffled.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]]; }
+                finalModes=shuffled.slice(0,cnt);
+            } else finalModes=["情境转换"];
+        }
+        if(modes.includes("综合变化")) finalModes=["情境转换","数据修改","跨学科","提升难度","降低难度"];
+        let extra = (qType==="选择题") ? "每道选择题提供3个选项，格式A. ... B. ... C. ..." : "";
+        let prompt = `你是一位小学数学教师。根据以下错题生成3道变式题。变化方式：${finalModes.join('、')}，题型：${qType}。${extra}\n要求：\n1. 每道题独立成行，以序号（1. 2. 3.）开头。\n2. 每道题之后必须单独一行写出该题的答案，格式为“答案：...”。\n3. 不要输出任何额外解释、评语或标题。\n4. 题目难度和内容要符合${gradeName}学生的认知水平。\n原题：${effectiveText}`;
+        const result = await callDoubao(prompt, card.image_base64);
+        const lines = result.split(/\r?\n/);
+        const questions=[], answers=[];
+        let curQ="", curA="", inQ=false;
+        for(let line of lines){
+            line=line.trim();
+            if(line.match(/^\d+\./)){
+                if(curQ){ questions.push(curQ.trim()); answers.push(curA.trim()); }
+                curQ=line.replace(/^\d+\.\s*/,'');
+                curA="";
+                inQ=true;
+            } else if(inQ && line.startsWith("答案：")){
+                curA=line.replace(/^答案：\s*/,'');
+            } else if(inQ && line.length>0){
+                curQ+="\n"+line;
+            }
+        }
+        if(curQ){ questions.push(curQ.trim()); answers.push(curA.trim()); }
+        while(questions.length<3){ questions.push("（题目生成失败，请重试）"); answers.push(""); }
+        const idx=mistakeList.findIndex(m=>m.id===cardId);
+        if(idx!==-1) mistakeList[idx].variants = { content:result, questions, answers, illustrations:[], modes:finalModes, type:qType, visible:true, gradeUsed:gradeName, textbookUsed:false, hasImages:false };
+        return { result, questions };
+    }
+
+    async function generateSingleIllustration(cardId, qIdx) {
+        const card=mistakeList.find(m=>m.id===cardId);
+        if(!card||!card.variants) return;
+        const q=card.variants.questions[qIdx];
+        if(!q) return;
+        const imgUrl = await callIllustration(q, card.variants.gradeUsed||"一年级");
+        if(imgUrl){
+            if(!card.variants.illustrations) card.variants.illustrations=[];
+            card.variants.illustrations[qIdx]=imgUrl;
+            card.variants.hasImages=card.variants.illustrations.some(i=>!!i);
+            applyFilterAndRender();
+        } else alert("生成配图失败");
+    }
+
+    async function callDoubao(prompt, imgBase64){
+        if(!doubaoApiKey) throw new Error("请设置API Key");
+        const content=[];
+        if(imgBase64) content.push({ type:"image_url", image_url:{ url:imgBase64 } });
+        content.push({ type:"text", text:prompt });
+        const res=await fetch(doubaoChatEndpoint, { method:"POST", headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${doubaoApiKey}` }, body:JSON.stringify({ model:doubaoChatModel, messages:[{ role:"user", content }], max_tokens:4000 }) });
+        if(!res.ok) throw new Error("API调用失败");
+        const data=await res.json();
+        if(data.choices && data.choices[0] && data.choices[0].message) return data.choices[0].message.content;
+        throw new Error("返回异常");
+    }
+
+    async function callIllustration(question, grade){
+        if(!doubaoApiKey) return null;
+        try{
+            const prompt=`为小学数学题生成线稿配图，包含题目主要对象和“？”位置，黑白线条，简洁。题目：${question} 年级：${grade}`;
+            const res=await fetch("https://ark.cn-beijing.volces.com/api/v3/images/generations", { method:"POST", headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${doubaoApiKey}` }, body:JSON.stringify({ model:doubaoImageGenModel, prompt, response_format:"url", size:"2K", watermark:false }) });
+            if(!res.ok) return null;
+            const data=await res.json();
+            return data.data?.[0]?.url || null;
+        } catch(e){ return null; }
+    }
+
+    function renderVariantInline(cardId, vd){
+        if(!vd || !vd.content) return '';
+        const visible=vd.visible!==false;
+        if(!visible) return `<div class="variant-inline"><div class="variant-header-inline"><span>已隐藏</span><button class="hide-btn" data-id="${cardId}" data-action="show">显示</button></div></div>`;
+        let qhtml='';
+        for(let i=0;i<vd.questions.length;i++){
+            const q=vd.questions[i];
+            const ans = vd.answers && vd.answers[i] ? vd.answers[i] : '';
+            const img=vd.illustrations?.[i];
+            qhtml+=`<div class="variant-question-with-image"><div class="variant-question-text">${escapeHtml(q)}</div>${ans ? `<div class="variant-answer-text">📌 答案：${escapeHtml(ans)}</div>` : ''}<div style="text-align:right; margin-top:4px;"><button class="generate-img-btn" data-card="${cardId}" data-index="${i}">🎨 生成配图</button><button class="import-btn" data-card="${cardId}" data-index="${i}">📥 导入</button></div>${img?`<div class="variant-question-image"><img src="${img}" style="max-width:100%;max-height:200px;" onclick="copyImageToClipboard('${img}')"><div class="image-actions"><button class="image-action-btn" onclick="copyImageToClipboard('${img}')">📋复制</button><button class="image-action-btn" onclick="downloadImage('${img}')">💾下载</button></div></div>`:''}</div>`;
+        }
+        return `<div class="variant-inline"><div class="variant-header-inline"><span>🎯 ${vd.type} (${vd.modes.join('、')})</span><div><button class="copy-all-variant" data-fulltext="${escapeHtml(vd.content).replace(/"/g,'&quot;')}">📋复制全部</button><button class="regenerate-btn" data-id="${cardId}">🔄更换</button><button class="hide-btn" data-id="${cardId}" data-action="hide">隐藏</button></div></div><div class="variant-questions">${qhtml}</div></div>`;
+    }
+
+    function copyImageToClipboard(url){ fetch(url).then(r=>r.blob()).then(blob=>{ navigator.clipboard.write([new ClipboardItem({[blob.type]:blob})]).then(()=>alert("已复制")); }).catch(()=>alert("失败")); }
+    function downloadImage(url,filename="math.png"){ const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
+    window.copyImageToClipboard=copyImageToClipboard; window.downloadImage=downloadImage;
+
+    function updateImportBadge() { const c=importedQuestions.length; importBadge.textContent=c>99?'99+':c; importBadge.style.display=c?'block':'none'; localStorage.setItem(IMPORTED_KEY,JSON.stringify(importedQuestions)); }
+    function loadImported(){ const s=localStorage.getItem(IMPORTED_KEY); importedQuestions=s?JSON.parse(s):[]; updateImportBadge(); }
+    function buildImportedPool(){
+        if(importedQuestions.length===0){ poolContent.innerHTML='<div style="padding:20px;text-align:center">暂无题目</div>'; return; }
+        let html='';
+        importedQuestions.forEach((q,idx)=>{
+            const tagsHtml = (q.tags && q.tags.length) ? `<span style="background:#eef2ff; font-size:0.7rem; padding:2px 6px; border-radius:20px; margin-left:6px;">${q.tags.join(',')}</span>` : '';
+            html+=`<div class="pool-item"><input type="checkbox" class="pool-checkbox" data-idx="${idx}"><div class="pool-item-content"><strong>${q.gradeVersion||''} ${q.unit||''}${tagsHtml}</strong><br>${escapeHtml(q.text)}${q.image?`<div><img src="${q.image}" class="pool-item-img"></div>`:''}</div><button class="remove-import-btn" data-idx="${idx}">✕</button></div>`;
+        });
+        poolContent.innerHTML=html;
+        document.querySelectorAll('.remove-import-btn').forEach(btn=>btn.addEventListener('click',()=>{ const idx=parseInt(btn.dataset.idx); importedQuestions.splice(idx,1); updateImportBadge(); buildImportedPool(); }));
+    }
+    function getSelected(){ const sel=[]; document.querySelectorAll('.pool-checkbox:checked').forEach(cb=>{ const idx=parseInt(cb.dataset.idx); if(importedQuestions[idx]) sel.push(importedQuestions[idx]); }); return sel; }
+    function generatePaperFromImported(){
+        const selected=getSelected();
+        if(selected.length===0){ alert("请至少选择一道题目"); return; }
+        const now=new Date();
+        const dateStr=`${now.getMonth()+1}.${now.getDate()}`;
+        let paperHtml=`<div class="export-title">${dateStr} 变式训练</div><div class="export-info"><div class="export-info-item">姓名：__________</div><div class="export-info-item">班级：__________</div></div>`;
+        selected.forEach((item,index)=>{
+            const tags = item.tags || [];
+            const tagText = tags.length ? `（${tags.join('，')}）` : '';
+            const titleContent = `${index+1}. ${tagText}`;
+            paperHtml += `<div class="export-question"><div class="export-question-title">${escapeHtml(titleContent)}</div><div class="export-question-content">${escapeHtml(item.text)}</div>`;
+            if(item.image) paperHtml += `<div><img src="${item.image}" class="export-question-image" alt="配图"></div>`;
+            paperHtml += `</div>`;
+        });
+        currentPaperHtml=paperHtml;
+        paperContent.innerHTML=paperHtml;
+        paperModal.style.display="flex";
+    }
+    function exportPdfDirect(){
+        if(!currentPaperHtml){ alert("请先生成试卷"); return; }
+        const element=paperContent;
+        if(!element) return;
+        const original=exportPdfBtn.innerText;
+        exportPdfBtn.innerText="⏳ 生成中...";
+        exportPdfBtn.disabled=true;
+        const opt={ margin:[0.5,0.5,0.5,0.5], filename:`变式训练_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.pdf`, image:{ type:'jpeg', quality:0.98 }, html2canvas:{ scale:2, letterRendering:true, useCORS:true }, jsPDF:{ unit:'in', format:'a4', orientation:'portrait' } };
+        html2pdf().set(opt).from(element).save().then(()=>{ exportPdfBtn.innerText=original; exportPdfBtn.disabled=false; }).catch(()=>{ alert("生成PDF失败"); exportPdfBtn.innerText=original; exportPdfBtn.disabled=false; });
+    }
+
+    async function importSelectedToDatabase() {
+        const selected = getSelected();
+        if (selected.length === 0) { alert("请至少选择一道题目进行导入"); return; }
+        if (importToDatabaseBtn) { importToDatabaseBtn.disabled=true; importToDatabaseBtn.textContent="⏳ 导入中..."; }
+        let successCount=0, failCount=0;
+        for (const item of selected) {
+            try {
+                const formData = new FormData();
+                formData.append("text", item.text);
+                formData.append("has_image", item.image ? "true" : "false");
+                if (item.image) formData.append("image_base64", item.image);
+                const allTags = [...(item.tags||[])];
+                if (item.gradeVersion && !allTags.includes(item.gradeVersion)) allTags.push(item.gradeVersion);
+                if (item.unit && !allTags.includes(item.unit)) allTags.push(item.unit);
+                formData.append("tags", allTags.join(","));
+                formData.append("gradeVersion", item.gradeVersion || "");
+                formData.append("unit", item.unit || "");
+                formData.append("correct_answer", item.answer || "");
+                const origId = item.originalId || generateOriginalId(item.text, item.gradeVersion, item.unit);
+                formData.append("originalId", origId);
+                const response = await fetch("https://quickform.cn/api/nh77dub2er", { method:"POST", body:formData });
+                if (response.ok) successCount++; else failCount++;
+            } catch(err) { failCount++; }
+        }
+        if (importToDatabaseBtn) { importToDatabaseBtn.disabled=false; importToDatabaseBtn.textContent="🗄️ 导入数据库"; }
+        alert(`导入完成：成功 ${successCount} 题，失败 ${failCount} 题`);
+    }
+
+    function importOriginalQuestion(cardId) {
+        const card = mistakeList.find(m=>m.id===cardId);
+        if(!card) return;
+        const customTags = (card.tags||[]).filter(t=>t!==card.gradeVersion && t!==card.unit);
+        const originalId = card.originalId || generateOriginalId(card.text, card.gradeVersion, card.unit);
+        importedQuestions.push({
+            id: Date.now() + '-' + Math.random(),
+            text: card.text,
+            image: (card.image_base64 && card.has_image) ? card.image_base64 : null,
+            gradeVersion: card.gradeVersion || '',
+            unit: card.unit || '',
+            type: 'original',
+            tags: customTags,
+            answer: '',
+            originalId: originalId
+        });
+        updateImportBadge();
+        alert("已导入原题到题库");
+    }
+
+    function importVariantQuestion(cardId, questionIndex) {
+        const card = mistakeList.find(m=>m.id===cardId);
+        if(!card||!card.variants) return;
+        const question = card.variants.questions[questionIndex];
+        if(!question) return;
+        const illustration = card.variants.illustrations?.[questionIndex];
+        const customTags = (card.tags||[]).filter(t=>t!==card.gradeVersion && t!==card.unit);
+        const answer = (card.variants.answers && card.variants.answers[questionIndex]) ? card.variants.answers[questionIndex] : '';
+        const originalId = card.originalId || generateOriginalId(card.text, card.gradeVersion, card.unit);
+        importedQuestions.push({
+            id: Date.now() + '-' + Math.random(),
+            text: question,
+            image: illustration || null,
+            gradeVersion: card.gradeVersion || '',
+            unit: card.unit || '',
+            type: 'variant',
+            tags: customTags,
+            answer: answer,
+            originalId: originalId
+        });
+        updateImportBadge();
+        alert(`已导入变式题 ${questionIndex+1}`);
+    }
+
+    function renderTagFilters() {
+        if(!tagFilterButtonsDiv) return;
+        const allTags=new Set();
+        mistakeList.forEach(item=>{ (item.tags||[]).forEach(t=>{ if(t!==item.gradeVersion && t!==item.unit) allTags.add(t); }); });
+        const tagArray=Array.from(allTags).sort();
+        if(tagArray.length===0){ tagFilterButtonsDiv.innerHTML='<span style="font-size:0.7rem; color:#8aa0b5;">暂无自定义标签</span>'; return; }
+        let html='';
+        tagArray.forEach(tag=>{
+            const active=currentTagFilters.includes(tag);
+            html+=`<button class="tag-filter-btn ${active?'active':''}" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}${active?'<span class="check-mark">✓</span>':''}</button>`;
+        });
+        tagFilterButtonsDiv.innerHTML=html;
+        document.querySelectorAll('.tag-filter-btn').forEach(btn=>{
+            btn.addEventListener('click',()=>{
+                const tag=btn.getAttribute('data-tag');
+                if(currentTagFilters.includes(tag)) currentTagFilters=currentTagFilters.filter(t=>t!==tag);
+                else currentTagFilters.push(tag);
+                renderTagFilters();
+                applyFilterAndRender();
+            });
+        });
+    }
+
+    function renderTags() {
+        if(!tagContainer) return;
+        tagContainer.innerHTML='';
+        currentTags.forEach((tag,idx)=>{
+            const div=document.createElement('div'); div.className='tag-item';
+            div.innerHTML=`${escapeHtml(tag)} <button data-idx="${idx}" class="remove-tag">✕</button>`;
+            tagContainer.appendChild(div);
+        });
+        const input=document.createElement('input'); input.type='text'; input.className='tag-input'; input.placeholder='输入标签，按回车...';
+        input.addEventListener('keypress',(e)=>{
+            if(e.key==='Enter' && e.target.value.trim()){
+                const val=e.target.value.trim();
+                if(!currentTags.includes(val)){ currentTags.push(val); renderTags(); }
+                e.target.value='';
+            }
+        });
+        tagContainer.appendChild(input);
+        document.querySelectorAll('.remove-tag').forEach(btn=>btn.addEventListener('click',(e)=>{
+            const idx=parseInt(btn.dataset.idx); if(!isNaN(idx)){ currentTags.splice(idx,1); renderTags(); }
+        }));
+    }
+
+    function showCropModal(src){ cropImage.src=src; cropImage.style.display='block'; cropSection.style.display='block'; previewImg.style.display='none'; if(cropper) cropper.destroy(); cropper=new Cropper(cropImage,{ aspectRatio:NaN, viewMode:1 }); }
+    function hideCropModal(){ cropSection.style.display='none'; cropImage.style.display='none'; if(cropper){ cropper.destroy(); cropper=null; } if(currentImageBase64) previewImg.src=currentImageBase64; previewImg.style.display='block'; }
+    function applyCrop(){ if(!cropper) return; const canvas=cropper.getCroppedCanvas({ width:800 }); currentImageBase64=canvas.toDataURL('image/jpeg',0.9); previewImg.src=currentImageBase64; previewImg.style.display='block'; hideCropModal(); if(currentImageBase64) performOCR(currentImageBase64); }
+    cropConfirmBtn.addEventListener("click",applyCrop);
+    cropCancelBtn.addEventListener("click",hideCropModal);
+    function handlePastedImage(blob){ const reader=new FileReader(); reader.onload=e=>{ currentImageBase64=e.target.result; showCropModal(currentImageBase64); }; reader.readAsDataURL(blob); }
+    window.addEventListener("paste",e=>{ if(uploadModal.style.display!=="flex") return; const items=e.clipboardData.items; for(let i of items) if(i.type.indexOf("image")!==-1){ handlePastedImage(i.getAsFile()); e.preventDefault(); break; } });
+    async function performOCR(imgBase64){ if(!imgBase64) return; ocrStatus.innerText="⏳ OCR识别中..."; try{ const blob=await (await fetch(imgBase64)).blob(); const { data:{ text } }=await Tesseract.recognize(blob,'chi_sim+eng'); if(text && text.trim()){ let cleaned=text.replace(/\s+/g,'').trim(); if(cleaned){ mistakeDesc.value=mistakeDesc.value+(mistakeDesc.value?"\n":"")+cleaned; ocrStatus.innerText="✅ 识别完成，已去除空格"; } else ocrStatus.innerText="⚠️ 识别为空"; } else ocrStatus.innerText="⚠️ 未识别到文字"; } catch(e){ ocrStatus.innerText="❌ OCR失败"; } setTimeout(()=>ocrStatus.innerText="",2500); }
+    ocrBtn.addEventListener("click",()=>performOCR(currentImageBase64));
+
+    async function parseCurriculum(file){ const ext=file.name.split('.').pop().toLowerCase(); let raw=""; if(ext==='docx'){ const buf=await file.arrayBuffer(); const res=await mammoth.extractRawText({ arrayBuffer:buf }); raw=res.value; } else if(ext==='pdf'){ const buf=await file.arrayBuffer(); const pdf=await pdfjsLib.getDocument({ data:new Uint8Array(buf) }).promise; for(let i=1;i<=pdf.numPages;i++){ const page=await pdf.getPage(i); const txt=await page.getTextContent(); raw+=txt.items.map(t=>t.str).join(' ')+"\n"; } } else throw new Error("不支持"); const lines=raw.split(/\r?\n/); const fw={}; let cur=null; const gradeRe=/([一二三四五六]年级[上下]册)/; for(let line of lines){ line=line.trim(); if(!line) continue; if(gradeRe.test(line)){ cur=line.match(gradeRe)[1]; if(!fw[cur]) fw[cur]=[]; } else if(cur && (/第?[一二三四五六七八九十]+单元/.test(line) || /^[一二三四五六七八九十]+[、.]/.test(line))){ let u=line.replace(/^[一二三四五六七八九十]+[、.]\s*/,'').replace(/^第?[一二三四五六七八九十]+单元\s*/,''); if(u && !fw[cur].includes(u)) fw[cur].push(u); } } if(Object.keys(fw).length===0) throw new Error("未识别到年级单元结构"); return fw; }
+    function refreshGradeSelectors(){ const grades=Object.keys(curriculumFramework); if(grades.length===0){ bookGradeSelect.innerHTML='<option>请先上传目录</option>'; unitSelect.innerHTML='<option>无数据</option>'; return; } bookGradeSelect.innerHTML='<option value="">请选择年级</option>'; grades.forEach(g=>{ const opt=document.createElement('option'); opt.value=g; opt.textContent=g; bookGradeSelect.appendChild(opt); }); if(grades.includes("一年级上册")) bookGradeSelect.value="一年级上册"; else if(grades.length) bookGradeSelect.value=grades[0]; updateUnitByGrade(bookGradeSelect.value); }
+    function updateUnitByGrade(grade){ if(!grade||!curriculumFramework[grade]){ unitSelect.innerHTML='<option>无单元</option>'; return; } unitSelect.innerHTML='<option value="">请选择单元</option>'; curriculumFramework[grade].forEach(u=>{ const opt=document.createElement('option'); opt.value=u; opt.textContent=u; unitSelect.appendChild(opt); }); }
+    bookGradeSelect.addEventListener("change",e=>updateUnitByGrade(e.target.value));
+    function saveFramework(){ localStorage.setItem(CURRICULUM_KEY,JSON.stringify(curriculumFramework)); refreshGradeSelectors(); if(textbookStatus) textbookStatus.innerText=`已加载 ${Object.keys(curriculumFramework).length} 个年级`; }
+    uploadTextbookBtn.onclick=()=>textbookModal.style.display="flex";
+    textbookUploadArea.onclick=()=>textbookFileInput.click();
+    textbookFileInput.onchange=async e=>{ const file=e.target.files[0]; if(file && (file.type==="application/vnd.openxmlformats-officedocument.wordprocessingml.document"||file.type==="application/pdf")){ textbookStatus.innerText="解析中..."; try{ curriculumFramework=await parseCurriculum(file); saveFramework(); textbookModal.style.display="none"; textbookStatus.innerText="成功"; }catch(err){ textbookStatus.innerText="解析失败"; } textbookFileInput.value=''; } else alert("请上传docx或pdf"); };
+    deleteTextbookBtn.onclick=()=>{ if(confirm("删除目录？")){ curriculumFramework={}; localStorage.removeItem(CURRICULUM_KEY); refreshGradeSelectors(); if(textbookStatus) textbookStatus.innerText="目录已删除"; } };
+    cancelTextbook.onclick=()=>textbookModal.style.display="none";
+
+    composePaperBtn.onclick=()=>{ buildImportedPool(); questionPoolModal.style.display="flex"; };
+    selectAllBtn.onclick=()=>{ const c=document.querySelectorAll('.pool-checkbox'); const any=Array.from(c).some(cb=>!cb.checked); c.forEach(cb=>cb.checked=any); };
+    generatePaperFromPoolBtn.onclick=generatePaperFromImported;
+    closePoolBtn.onclick=()=>questionPoolModal.style.display="none";
+    exportPdfBtn.onclick=exportPdfDirect;
+    closePaperBtn.onclick=()=>paperModal.style.display="none";
+    gradeVersionFilter.onchange=e=>{ currentGradeVersionFilter=e.target.value; applyFilterAndRender(); };
+    unitFilter.onchange=e=>{ currentUnitFilter=e.target.value; applyFilterAndRender(); };
+    searchBtn.onclick=()=>{ searchInput.classList.toggle('show'); if(searchInput.classList.contains('show')) searchInput.focus(); else{ currentKeywordFilter=""; applyFilterAndRender(); } };
+    searchInput.addEventListener('keyup',()=>{ currentKeywordFilter=searchInput.value; applyFilterAndRender(); });
+    window.openImageModal=(src)=>{ const d=document.createElement('div'); d.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;justify-content:center;align-items:center;z-index:3000;'; const img=document.createElement('img'); img.src=src; img.style.maxWidth='90%'; img.style.maxHeight='90%'; d.appendChild(img); d.onclick=()=>d.remove(); document.body.appendChild(d); };
+    function resetUploadModal(){ currentImageBase64=""; previewImg.style.display="none"; previewImg.src=""; cropSection.style.display="none"; if(cropper) cropper.destroy(); mistakeDesc.value=""; ocrStatus.innerText=""; currentTags=[]; renderTags(); }
+    uploadArea.onclick=()=>fileInput.click();
+    fileInput.onchange=e=>{ if(e.target.files[0]){ const reader=new FileReader(); reader.onload=ev=>{ currentImageBase64=ev.target.result; showCropModal(currentImageBase64); }; reader.readAsDataURL(e.target.files[0]); } };
+    submitMistakeBtn.onclick=async()=>{ if(cropper){ alert("请完成裁剪或取消"); return; } const desc=mistakeDesc.value.trim(); if(!desc && !currentImageBase64){ alert("请填写描述或上传图片"); return; } const gv=bookGradeSelect.value, unit=unitSelect.value; if(!gv || !unit){ alert("请选择年级和单元"); return; } await addMistake(desc,currentImageBase64,currentTags,gv,unit); uploadModal.style.display="none"; resetUploadModal(); await fetchMistakesAndStats(); };
+    cancelUpload.onclick=()=>{ if(cropper) hideCropModal(); uploadModal.style.display="none"; resetUploadModal(); };
+    addBtn.onclick=()=>{ resetUploadModal(); uploadModal.style.display="flex"; if(Object.keys(curriculumFramework).length===0) alert("请先上传教材目录"); };
+    apiKeyBtn.onclick=()=>{ apiKeyInput.value=doubaoApiKey; apiEndpointInput.value=doubaoChatEndpoint; modelNameInput.value=doubaoChatModel; imageGenModelInput.value=doubaoImageGenModel; apiKeyModal.style.display="flex"; };
+    saveApiKey.onclick=()=>{ doubaoApiKey=apiKeyInput.value.trim(); doubaoChatEndpoint=apiEndpointInput.value.trim(); doubaoChatModel=modelNameInput.value.trim(); doubaoImageGenModel=imageGenModelInput.value.trim(); localStorage.setItem("doubao_api_key",doubaoApiKey); localStorage.setItem("doubao_endpoint",doubaoChatEndpoint); localStorage.setItem("doubao_model",doubaoChatModel); localStorage.setItem("doubao_image_gen_model",doubaoImageGenModel); alert("已保存"); apiKeyModal.style.display="none"; };
+    cancelApiKey.onclick=()=>apiKeyModal.style.display="none";
+    databaseBtn.onclick=()=>window.open("https://quickform.cn/task/37488/data","_blank");
+    if(importToDatabaseBtn) importToDatabaseBtn.addEventListener("click", importSelectedToDatabase);
+    if(viewDatabaseBtn) viewDatabaseBtn.addEventListener("click", ()=>{ window.open("https://quickform.cn/task/42707/data","_blank"); });
+    
+    async function fetchMistakesAndStats(){ await fetchMistakes(); await fetchAccuracyData(); }
+    refreshDataBtn.onclick = ()=>{ fetchMistakesAndStats(); };
+
+    // 页面加载时自动刷新数据
+    loadImported(); refreshGradeSelectors(); fetchMistakesAndStats();
+</script>
+</body>
+</html>
