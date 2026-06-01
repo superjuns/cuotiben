@@ -185,7 +185,6 @@
             padding: 0 4px;
             box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
-        /* 标签筛选栏 */
         .tag-filter-bar {
             background: #ffffffcc;
             backdrop-filter: blur(8px);
@@ -221,7 +220,6 @@
         .tag-filter-btn.active .check-mark { font-weight: bold; color: #1e6f9f; }
         .tag-filter-btn:hover { background: #d4e5f5; }
         .check-mark { font-size: 0.65rem; }
-        /* 错题卡片 */
         .mistake-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -266,6 +264,18 @@
             padding: 0.15rem 0.5rem;
             border-radius: 30px;
             white-space: nowrap;
+        }
+        .mistake-time {
+            font-size: 0.65rem;
+            color: #8aa0b5;
+            white-space: nowrap;
+            margin-left: auto;
+            background: #f5f9fe;
+            padding: 2px 8px;
+            border-radius: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
         .accuracy-container {
             padding: 0.6rem 1rem;
@@ -402,6 +412,16 @@
         .export-question-title { font-weight:600; font-size:14pt; margin-bottom:8px; color:black; }
         .export-question-content { font-size:12pt; line-height:1.5; }
         .export-question-image { max-width:100%; max-height:200px; margin-top:8px; }
+        .sort-select {
+            background: white;
+            border: 1px solid #cde0ef;
+            border-radius: 40px;
+            padding: 4px 10px;
+            font-size: 0.7rem;
+            outline: none;
+            cursor: pointer;
+            color: #2c6e9e;
+        }
     </style>
 </head>
 <body>
@@ -429,13 +449,18 @@
         <div class="filter-group">
             <select id="gradeVersionFilter" class="filter-select"><option value="">全年级</option></select>
             <select id="unitFilter" class="filter-select"><option value="">全单元</option></select>
+            <select id="sortSelect" class="sort-select">
+                <option value="time_desc">🕒 导入时间（新→旧）</option>
+                <option value="time_asc">🕒 导入时间（旧→新）</option>
+                <option value="rate_desc">📊 正确率（高→低）</option>
+                <option value="rate_asc">📊 正确率（低→高）</option>
+            </select>
             <div class="search-wrapper">
                 <button id="searchBtn" class="search-btn">🔍</button>
                 <input type="text" id="searchInput" class="search-input" placeholder="输入关键词...">
             </div>
         </div>
     </div>
-    <!-- 标签筛选栏 -->
     <div class="tag-filter-bar" id="tagFilterBar">
         <div class="tag-filter-buttons" id="tagFilterButtons"></div>
     </div>
@@ -467,6 +492,7 @@
     let mistakeList = [];
     let currentKeywordFilter = "", currentGradeVersionFilter = "", currentUnitFilter = "";
     let currentTagFilters = [];
+    let currentSort = "time_desc";
     let sortableInstance = null, currentPaperHtml = "";
     let importedQuestions = [];
     let curriculumFramework = JSON.parse(localStorage.getItem(CURRICULUM_KEY) || "{}");
@@ -499,6 +525,7 @@
     const searchInput = document.getElementById("searchInput");
     const gradeVersionFilter = document.getElementById("gradeVersionFilter");
     const unitFilter = document.getElementById("unitFilter");
+    const sortSelect = document.getElementById("sortSelect");
     const databaseBtn = document.getElementById("databaseBtn");
     const apiKeyBtn = document.getElementById("apiKeyBtn");
     const apiKeyModal = document.getElementById("apiKeyModal");
@@ -537,6 +564,70 @@
 
     function escapeHtml(str) { return str ? str.replace(/[&<>]/g, m => m === '&' ? '&amp;' : (m === '<' ? '&lt;' : '&gt;')) : ''; }
 
+    // 格式化导入时间：年份简写 26/6/1 21:57
+    function formatImportTime(timeStr) {
+        if (!timeStr) return '未知时间';
+        try {
+            const date = new Date(timeStr);
+            if (isNaN(date.getTime())) return '无效时间';
+            const year = date.getFullYear().toString().slice(-2);
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}/${month}/${day} ${hours}:${minutes}`;
+        } catch(e) {
+            return '无效时间';
+        }
+    }
+
+    // 获取某错题的正确率（返回数值，无数据时返回 -1 表示“无数据”）
+    function getAccuracyRate(item) {
+        let targetId = item.originalId;
+        if (!targetId) targetId = generateOriginalId(item.text, item.gradeVersion, item.unit);
+        if (accuracyStats[targetId]) {
+            const stat = accuracyStats[targetId];
+            return stat.total === 0 ? -1 : (stat.correct / stat.total * 100);
+        }
+        return -1;
+    }
+
+    // 排序函数（根据 currentSort 对数组排序）
+    function sortMistakes(list) {
+        const sorted = [...list];
+        switch (currentSort) {
+            case 'time_desc':
+                sorted.sort((a, b) => new Date(b.submitted_at || 0) - new Date(a.submitted_at || 0));
+                break;
+            case 'time_asc':
+                sorted.sort((a, b) => new Date(a.submitted_at || 0) - new Date(b.submitted_at || 0));
+                break;
+            case 'rate_desc':
+                sorted.sort((a, b) => {
+                    const rateA = getAccuracyRate(a);
+                    const rateB = getAccuracyRate(b);
+                    if (rateA === -1 && rateB === -1) return 0;
+                    if (rateA === -1) return 1;
+                    if (rateB === -1) return -1;
+                    return rateB - rateA;
+                });
+                break;
+            case 'rate_asc':
+                sorted.sort((a, b) => {
+                    const rateA = getAccuracyRate(a);
+                    const rateB = getAccuracyRate(b);
+                    if (rateA === -1 && rateB === -1) return 0;
+                    if (rateA === -1) return 1;
+                    if (rateB === -1) return -1;
+                    return rateA - rateB;
+                });
+                break;
+            default: break;
+        }
+        return sorted;
+    }
+
+    // 统一 originalId 生成
     function generateOriginalId(question, gradeVersion = '', unit = '') {
         const normalizedText = (question || "").replace(/\s+/g, '').trim().toLowerCase();
         let baseId = normalizedText + (gradeVersion || '') + (unit || '');
@@ -548,6 +639,7 @@
         return "mist_" + Math.abs(hash).toString(16);
     }
 
+    // 学情数据
     async function fetchAccuracyData() {
         try {
             const res = await fetch("https://quickform.cn/api/srnos93opr/all");
@@ -580,6 +672,7 @@
         return null;
     }
 
+    // 绘制扇形图
     function drawPieChart(canvas, correctRate, totalCount) {
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
@@ -622,7 +715,8 @@
                     variants: null,
                     gradeVersion: sub.gradeVersion || null,
                     unit: sub.unit || null,
-                    originalId: sub.originalId || null
+                    originalId: sub.originalId || null,
+                    submitted_at: sub.submitted_at || sub.created_at || null
                 }));
             } else mistakeList = [];
             updateFilterOptions();
@@ -649,7 +743,18 @@
             await fetch(API_BASE,{method:"POST",body:fd});
             return true;
         } catch(e){
-            mistakeList.unshift({ id:Date.now().toString(), text, image_base64:img||"", has_image:!!img, tags:finalTags, variants:null, gradeVersion:gv, unit, originalId });
+            mistakeList.unshift({ 
+                id:Date.now().toString(), 
+                text, 
+                image_base64:img||"", 
+                has_image:!!img, 
+                tags:finalTags, 
+                variants:null, 
+                gradeVersion:gv, 
+                unit, 
+                originalId,
+                submitted_at: new Date().toISOString()
+            });
             updateFilterOptions(); renderTagFilters(); applyFilterAndRender(); initSortable();
             return false;
         }
@@ -679,6 +784,7 @@
         if(currentUnitFilter) f=f.filter(i=>i.unit===currentUnitFilter);
         if(currentKeywordFilter) f=f.filter(i=>i.text.toLowerCase().includes(currentKeywordFilter.toLowerCase()));
         if(currentTagFilters.length) f=f.filter(item=>{ const tags=item.tags||[]; return currentTagFilters.some(tag=>tags.includes(tag)); });
+        f = sortMistakes(f);
         totalCountFooter.innerText=`共 ${f.length} 道错题`;
         renderByView(f);
     }
@@ -705,7 +811,8 @@
                     <div class="accuracy-text"><span class="accuracy-number">暂无学情数据</span><span class="learning-count">✨ 学生作答后自动统计</span></div>
                 </div>`;
             }
-            html+=`<div class="mistake-card" data-id="${item.id}"><div class="card-header"><div><span class="drag-handle">☰</span><div class="tag-group">${otherTags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div></div></div>${accuracyHtml}<div class="content-area">${item.has_image?`<div class="image-container"><img class="mistake-img" src="${item.image_base64}" onclick="openImageModal('${item.image_base64}')"></div>`:`<div class="mistake-text">📝 ${escapeHtml(item.text)}</div>`}</div><div class="card-footer"><button class="btn-sm import-original-btn" data-id="${item.id}">📥 导入</button><button class="btn-sm btn-sm-primary variant-trigger" data-id="${item.id}" data-text="${escapeHtml(item.text).replace(/'/g,"\\'")}">✨ 变式</button></div>${variantHtml}</div>`;
+            const timeDisplay = formatImportTime(item.submitted_at);
+            html+=`<div class="mistake-card" data-id="${item.id}"><div class="card-header"><div><span class="drag-handle">☰</span><div class="tag-group">${otherTags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div></div><div class="mistake-time" title="导入时间">📅 ${timeDisplay}</div></div>${accuracyHtml}<div class="content-area">${item.has_image?`<div class="image-container"><img class="mistake-img" src="${item.image_base64}" onclick="openImageModal('${item.image_base64}')"></div>`:`<div class="mistake-text">📝 ${escapeHtml(item.text)}</div>`}</div><div class="card-footer"><button class="btn-sm import-original-btn" data-id="${item.id}">📥 导入</button><button class="btn-sm btn-sm-primary variant-trigger" data-id="${item.id}" data-text="${escapeHtml(item.text).replace(/'/g,"\\'")}">✨ 变式</button></div>${variantHtml}</div>`;
         });
         container.innerHTML=html;
         document.querySelectorAll('.pie-canvas').forEach(canvas => {
@@ -757,6 +864,9 @@
         if(cancelBtn) cancelBtn.addEventListener('click',()=>document.querySelector(`.variant-config-panel[data-id="${cardId}"]`)?.remove());
     }
 
+    // 六种变化方式常量
+    const VARIANT_MODES_LIST = ["情境转换", "数据修改", "跨学科", "提升难度", "降低难度", "综合变化"];
+
     async function generateVariantsForCard(cardId, originalText, modes, qType) {
         const card = mistakeList.find(m=>m.id===cardId);
         if(!card) throw new Error("卡片不存在");
@@ -764,17 +874,19 @@
         let targetGradeNum = "1";
         for(let tag of card.tags){ const m=tag.match(/[一二三四五六]年级/); if(m) { targetGradeNum = { "一":"1","二":"2","三":"3","四":"4","五":"5","六":"6" }[m[0][0]] || "1"; break; } }
         const gradeName = ["一年级","二年级","三年级","四年级","五年级","六年级"][parseInt(targetGradeNum)-1] || "一年级";
-        let finalModes = [...modes];
-        if(modes.includes("随机选择")){
-            const other=modes.filter(m=>m!=="随机选择"&&m!=="综合变化");
-            if(other.length){
-                const cnt=Math.floor(Math.random()*Math.min(2,other.length))+1;
-                const shuffled=[...other];
-                for(let i=shuffled.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]]; }
-                finalModes=shuffled.slice(0,cnt);
-            } else finalModes=["情境转换"];
+        let finalModes = [];
+        
+        // 新版随机选择逻辑：如果包含"随机选择"，则从6种方式中随机选1种（与游戏端一致）
+        if(modes.includes("随机选择")) {
+            const randomIndex = Math.floor(Math.random() * VARIANT_MODES_LIST.length);
+            finalModes = [VARIANT_MODES_LIST[randomIndex]];
+        } else {
+            // 未勾选随机选择时，直接使用用户勾选的方式（可能多个，保持原有的多方式能力）
+            finalModes = modes.filter(m => m !== "随机选择" && m !== "综合变化");
+            if(modes.includes("综合变化")) finalModes = ["情境转换","数据修改","跨学科","提升难度","降低难度"];
+            if(finalModes.length === 0) finalModes = ["情境转换"];
         }
-        if(modes.includes("综合变化")) finalModes=["情境转换","数据修改","跨学科","提升难度","降低难度"];
+        
         let extra = (qType==="选择题") ? "每道选择题提供3个选项，格式A. ... B. ... C. ..." : "";
         let prompt = `你是一位小学数学教师。根据以下错题生成3道变式题。变化方式：${finalModes.join('、')}，题型：${qType}。${extra}\n要求：\n1. 每道题独立成行，以序号（1. 2. 3.）开头。\n2. 每道题之后必须单独一行写出该题的答案，格式为“答案：...”。\n3. 不要输出任何额外解释、评语或标题。\n4. 题目难度和内容要符合${gradeName}学生的认知水平。\n原题：${effectiveText}`;
         const result = await callDoubao(prompt, card.image_base64);
@@ -1025,115 +1137,24 @@
     async function performOCR(imgBase64){ if(!imgBase64) return; ocrStatus.innerText="⏳ OCR识别中..."; try{ const blob=await (await fetch(imgBase64)).blob(); const { data:{ text } }=await Tesseract.recognize(blob,'chi_sim+eng'); if(text && text.trim()){ let cleaned=text.replace(/\s+/g,'').trim(); if(cleaned){ mistakeDesc.value=mistakeDesc.value+(mistakeDesc.value?"\n":"")+cleaned; ocrStatus.innerText="✅ 识别完成，已去除空格"; } else ocrStatus.innerText="⚠️ 识别为空"; } else ocrStatus.innerText="⚠️ 未识别到文字"; } catch(e){ ocrStatus.innerText="❌ OCR失败"; } setTimeout(()=>ocrStatus.innerText="",2500); }
     ocrBtn.addEventListener("click",()=>performOCR(currentImageBase64));
 
-    // ================= 增强的教材目录解析：支持“综合实践”、“数学好玩”等为单元 =================
-    async function parseCurriculum(file) {
-        const ext = file.name.split('.').pop().toLowerCase();
-        let raw = "";
-        if (ext === 'docx') {
-            const buf = await file.arrayBuffer();
-            const res = await mammoth.extractRawText({ arrayBuffer: buf });
-            raw = res.value;
-        } else if (ext === 'pdf') {
-            const buf = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const txt = await page.getTextContent();
-                raw += txt.items.map(t => t.str).join(' ') + "\n";
-            }
-        } else {
-            throw new Error("不支持的文件格式");
-        }
-        const lines = raw.split(/\r?\n/);
-        const framework = {};
-        let currentGrade = null;
-        const gradeRegex = /([一二三四五六]年级[上下]册)/;
-        // 单元识别模式：支持数字序号、第X单元，以及“综合实践”、“数学好玩”等非数字关键词
-        const unitPatterns = [
-            /第?[一二三四五六七八九十]+单元/,   // 第一单元、第1单元
-            /^[一二三四五六七八九十]+[、.．]/,   // 1. 2. 一、
-            /综合实践/, /数学好玩/, /整理与复习/, /总复习/,
-            /我上学啦/, /生活中的数/, /图形大变身/, /记录我的一天/,
-            /设计教室装饰图/, /画数学连环画/, /有趣的立体图形/, /有趣的平面图形/
-        ];
-        function isUnitLine(line) {
-            for (let pattern of unitPatterns) {
-                if (pattern.test(line)) return true;
-            }
-            return false;
-        }
-        for (let line of lines) {
-            line = line.trim();
-            if (!line) continue;
-            const gradeMatch = line.match(gradeRegex);
-            if (gradeMatch) {
-                currentGrade = gradeMatch[1];
-                if (!framework[currentGrade]) framework[currentGrade] = [];
-                continue;
-            }
-            if (currentGrade && isUnitLine(line)) {
-                // 清理单元名称：去掉多余的序号前缀、空格
-                let unitName = line;
-                // 去掉开头的数字序号（如 "1. " "一、" "第一单元"）
-                unitName = unitName.replace(/^第?[一二三四五六七八九十]+单元\s*/, '');
-                unitName = unitName.replace(/^[一二三四五六七八九十]+[、.．]\s*/, '');
-                // 如果清理后为空，则保留原标题
-                if (unitName.length === 0) unitName = line;
-                // 避免重复添加相同单元名
-                if (!framework[currentGrade].includes(unitName)) {
-                    framework[currentGrade].push(unitName);
-                }
-            }
-        }
-        if (Object.keys(framework).length === 0) {
-            throw new Error("未识别到年级单元结构，请确保文件中包含“一年级上册”等年级关键词以及单元标题");
-        }
-        return framework;
-    }
+    async function parseCurriculum(file){ const ext=file.name.split('.').pop().toLowerCase(); let raw=""; if(ext==='docx'){ const buf=await file.arrayBuffer(); const res=await mammoth.extractRawText({ arrayBuffer:buf }); raw=res.value; } else if(ext==='pdf'){ const buf=await file.arrayBuffer(); const pdf=await pdfjsLib.getDocument({ data:new Uint8Array(buf) }).promise; for(let i=1;i<=pdf.numPages;i++){ const page=await pdf.getPage(i); const txt=await page.getTextContent(); raw+=txt.items.map(t=>t.str).join(' ')+"\n"; } } else throw new Error("不支持"); const lines=raw.split(/\r?\n/); const fw={}; let cur=null; const gradeRe=/([一二三四五六]年级[上下]册)/; const unitPatterns=[/第?[一二三四五六七八九十]+单元/,/^[一二三四五六七八九十]+[、.．]/,/综合实践/,/数学好玩/,/整理与复习/,/总复习/,/我上学啦/,/生活中的数/,/图形大变身/,/记录我的一天/,/设计教室装饰图/,/画数学连环画/,/有趣的立体图形/,/有趣的平面图形/]; function isUnitLine(line){ for(let p of unitPatterns) if(p.test(line)) return true; return false; } for(let line of lines){ line=line.trim(); if(!line) continue; if(gradeRe.test(line)){ cur=line.match(gradeRe)[1]; if(!fw[cur]) fw[cur]=[]; } else if(cur && isUnitLine(line)){ let unitName=line.replace(/^第?[一二三四五六七八九十]+单元\s*/,'').replace(/^[一二三四五六七八九十]+[、.．]\s*/,''); if(unitName.length===0) unitName=line; if(!fw[cur].includes(unitName)) fw[cur].push(unitName); } } if(Object.keys(fw).length===0) throw new Error("未识别到年级单元结构"); return fw; }
     
     async function uploadTextbookToDatabase(framework) {
         try {
-            const response = await fetch(TEXTBOOK_API, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    timestamp: new Date().toISOString(),
-                    framework: framework,
-                    note: "教材目录框架上传"
-                })
-            });
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error("教材上传失败:", errorText);
-                return false;
-            }
-            console.log("教材已成功上传至数据库");
+            const response = await fetch(TEXTBOOK_API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ timestamp: new Date().toISOString(), framework: framework, note: "教材目录框架上传" }) });
+            if (!response.ok) return false;
             return true;
-        } catch (err) {
-            console.error("教材上传请求异常:", err);
-            return false;
-        }
+        } catch (err) { return false; }
     }
 
     async function deleteTextbookFromDatabase() {
-        try {
-            const response = await fetch(TEXTBOOK_API + "/clear", { method: "DELETE" });
-            if (!response.ok) {
-                console.warn("删除云端教材失败:", response.status);
-                return false;
-            }
-            console.log("云端教材已清空");
-            return true;
-        } catch (err) {
-            console.warn("删除云端教材请求异常:", err);
-            return false;
-        }
+        try { await fetch(TEXTBOOK_API + "/clear", { method: "DELETE" }); return true; } catch(err) { return false; }
     }
 
     async function fetchTextbookFromDatabase() {
         try {
             const response = await fetch(TEXTBOOK_API + "/all");
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) throw new Error();
             const data = await response.json();
             if (data && Array.isArray(data.submissions) && data.submissions.length > 0) {
                 const sorted = data.submissions.sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
@@ -1148,117 +1169,65 @@
             }
             if (textbookStatus) textbookStatus.innerText = `本地教材目录 ${Object.keys(curriculumFramework).length} 个年级`;
         } catch (err) {
-            console.warn("从数据库拉取教材目录失败:", err);
             if (textbookStatus) textbookStatus.innerText = `本地教材目录 ${Object.keys(curriculumFramework).length} 个年级`;
         }
     }
 
-    function refreshGradeSelectors() {
-        const grades = Object.keys(curriculumFramework);
-        if (grades.length === 0) {
-            bookGradeSelect.innerHTML = '<option>请先上传目录</option>';
-            unitSelect.innerHTML = '<option>无数据</option>';
-            return;
-        }
-        bookGradeSelect.innerHTML = '<option value="">请选择年级</option>';
-        grades.forEach(g => {
-            const opt = document.createElement('option');
-            opt.value = g;
-            opt.textContent = g;
-            bookGradeSelect.appendChild(opt);
-        });
-        if (grades.includes("一年级上册")) bookGradeSelect.value = "一年级上册";
-        else if (grades.length) bookGradeSelect.value = grades[0];
-        updateUnitByGrade(bookGradeSelect.value);
-    }
-    function updateUnitByGrade(grade) {
-        if (!grade || !curriculumFramework[grade]) {
-            unitSelect.innerHTML = '<option>无单元</option>';
-            return;
-        }
-        unitSelect.innerHTML = '<option value="">请选择单元</option>';
-        curriculumFramework[grade].forEach(u => {
-            const opt = document.createElement('option');
-            opt.value = u;
-            opt.textContent = u;
-            unitSelect.appendChild(opt);
-        });
-    }
-    bookGradeSelect.addEventListener("change", e => updateUnitByGrade(e.target.value));
+    function refreshGradeSelectors(){ const grades=Object.keys(curriculumFramework); if(grades.length===0){ bookGradeSelect.innerHTML='<option>请先上传目录</option>'; unitSelect.innerHTML='<option>无数据</option>'; return; } bookGradeSelect.innerHTML='<option value="">请选择年级</option>'; grades.forEach(g=>{ const opt=document.createElement('option'); opt.value=g; opt.textContent=g; bookGradeSelect.appendChild(opt); }); if(grades.includes("一年级上册")) bookGradeSelect.value="一年级上册"; else if(grades.length) bookGradeSelect.value=grades[0]; updateUnitByGrade(bookGradeSelect.value); }
+    function updateUnitByGrade(grade){ if(!grade||!curriculumFramework[grade]){ unitSelect.innerHTML='<option>无单元</option>'; return; } unitSelect.innerHTML='<option value="">请选择单元</option>'; curriculumFramework[grade].forEach(u=>{ const opt=document.createElement('option'); opt.value=u; opt.textContent=u; unitSelect.appendChild(opt); }); }
+    bookGradeSelect.addEventListener("change",e=>updateUnitByGrade(e.target.value));
     
-    async function saveFramework() {
-        localStorage.setItem(CURRICULUM_KEY, JSON.stringify(curriculumFramework));
-        refreshGradeSelectors();
-        if (textbookStatus) textbookStatus.innerText = `✅ 已加载 ${Object.keys(curriculumFramework).length} 个年级`;
+    async function saveFramework() { 
+        localStorage.setItem(CURRICULUM_KEY, JSON.stringify(curriculumFramework)); refreshGradeSelectors(); if(textbookStatus) textbookStatus.innerText = `✅ 已加载 ${Object.keys(curriculumFramework).length} 个年级`;
         if (textbookStatus) textbookStatus.innerText = "📤 正在上传至数据库...";
         const uploadSuccess = await uploadTextbookToDatabase(curriculumFramework);
-        if (uploadSuccess && textbookStatus) {
-            textbookStatus.innerText = `✅ 已加载 ${Object.keys(curriculumFramework).length} 个年级 (已同步云端)`;
-        } else if (textbookStatus) {
-            textbookStatus.innerText = `⚠️ 本地加载成功，但云端同步失败，请重试`;
-        }
+        if (uploadSuccess && textbookStatus) textbookStatus.innerText = `✅ 已加载 ${Object.keys(curriculumFramework).length} 个年级 (已同步云端)`;
+        else if (textbookStatus) textbookStatus.innerText = `⚠️ 本地加载成功，但云端同步失败，请重试`;
     }
     
-    uploadTextbookBtn.onclick = () => textbookModal.style.display = "flex";
-    textbookUploadArea.onclick = () => textbookFileInput.click();
-    textbookFileInput.onchange = async e => {
-        const file = e.target.files[0];
-        if (file && (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.type === "application/pdf")) {
-            textbookStatus.innerText = "解析中...";
-            try {
-                curriculumFramework = await parseCurriculum(file);
-                await saveFramework();
-                textbookModal.style.display = "none";
-            } catch (err) {
-                textbookStatus.innerText = "解析失败: " + err.message;
-            }
-            textbookFileInput.value = '';
-        } else {
-            alert("请上传docx或pdf");
-        }
-    };
+    uploadTextbookBtn.onclick=()=>textbookModal.style.display="flex";
+    textbookUploadArea.onclick=()=>textbookFileInput.click();
+    textbookFileInput.onchange=async e=>{ const file=e.target.files[0]; if(file && (file.type==="application/vnd.openxmlformats-officedocument.wordprocessingml.document"||file.type==="application/pdf")){ textbookStatus.innerText="解析中..."; try{ curriculumFramework=await parseCurriculum(file); await saveFramework(); textbookModal.style.display="none"; }catch(err){ textbookStatus.innerText="解析失败"; } textbookFileInput.value=''; } else alert("请上传docx或pdf"); };
     
-    deleteTextbookBtn.onclick = async () => {
-        if (confirm("删除目录？将同时清空本地与云端教材框架")) {
-            curriculumFramework = {};
-            localStorage.removeItem(CURRICULUM_KEY);
-            refreshGradeSelectors();
-            if (textbookStatus) textbookStatus.innerText = "目录已删除";
+    deleteTextbookBtn.onclick = async () => { 
+        if(confirm("删除目录？将同时清空本地与云端教材框架")){ 
+            curriculumFramework={}; 
+            localStorage.removeItem(CURRICULUM_KEY); 
+            refreshGradeSelectors(); 
+            if(textbookStatus) textbookStatus.innerText="目录已删除";
             await deleteTextbookFromDatabase();
-        }
+        } 
     };
-    cancelTextbook.onclick = () => textbookModal.style.display = "none";
+    cancelTextbook.onclick=()=>textbookModal.style.display="none";
 
-    composePaperBtn.onclick = () => { buildImportedPool(); questionPoolModal.style.display = "flex"; };
-    selectAllBtn.onclick = () => { const c = document.querySelectorAll('.pool-checkbox'); const any = Array.from(c).some(cb => !cb.checked); c.forEach(cb => cb.checked = any); };
-    generatePaperFromPoolBtn.onclick = generatePaperFromImported;
-    closePoolBtn.onclick = () => questionPoolModal.style.display = "none";
-    exportPdfBtn.onclick = exportPdfDirect;
-    closePaperBtn.onclick = () => paperModal.style.display = "none";
-    gradeVersionFilter.onchange = e => { currentGradeVersionFilter = e.target.value; applyFilterAndRender(); };
-    unitFilter.onchange = e => { currentUnitFilter = e.target.value; applyFilterAndRender(); };
-    searchBtn.onclick = () => { searchInput.classList.toggle('show'); if (searchInput.classList.contains('show')) searchInput.focus(); else { currentKeywordFilter = ""; applyFilterAndRender(); } };
-    searchInput.addEventListener('keyup', () => { currentKeywordFilter = searchInput.value; applyFilterAndRender(); });
-    window.openImageModal = (src) => { const d = document.createElement('div'); d.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;justify-content:center;align-items:center;z-index:3000;'; const img = document.createElement('img'); img.src = src; img.style.maxWidth = '90%'; img.style.maxHeight = '90%'; d.appendChild(img); d.onclick = () => d.remove(); document.body.appendChild(d); };
-    function resetUploadModal() { currentImageBase64 = ""; previewImg.style.display = "none"; previewImg.src = ""; cropSection.style.display = "none"; if (cropper) cropper.destroy(); mistakeDesc.value = ""; ocrStatus.innerText = ""; currentTags = []; renderTags(); }
-    uploadArea.onclick = () => fileInput.click();
-    fileInput.onchange = e => { if (e.target.files[0]) { const reader = new FileReader(); reader.onload = ev => { currentImageBase64 = ev.target.result; showCropModal(currentImageBase64); }; reader.readAsDataURL(e.target.files[0]); } };
-    submitMistakeBtn.onclick = async () => { if (cropper) { alert("请完成裁剪或取消"); return; } const desc = mistakeDesc.value.trim(); if (!desc && !currentImageBase64) { alert("请填写描述或上传图片"); return; } const gv = bookGradeSelect.value, unit = unitSelect.value; if (!gv || !unit) { alert("请选择年级和单元"); return; } await addMistake(desc, currentImageBase64, currentTags, gv, unit); uploadModal.style.display = "none"; resetUploadModal(); await fetchMistakesAndStats(); };
-    cancelUpload.onclick = () => { if (cropper) hideCropModal(); uploadModal.style.display = "none"; resetUploadModal(); };
-    addBtn.onclick = () => { resetUploadModal(); uploadModal.style.display = "flex"; if (Object.keys(curriculumFramework).length === 0) alert("请先上传教材目录"); };
-    apiKeyBtn.onclick = () => { apiKeyInput.value = doubaoApiKey; apiEndpointInput.value = doubaoChatEndpoint; modelNameInput.value = doubaoChatModel; imageGenModelInput.value = doubaoImageGenModel; apiKeyModal.style.display = "flex"; };
-    saveApiKey.onclick = () => { doubaoApiKey = apiKeyInput.value.trim(); doubaoChatEndpoint = apiEndpointInput.value.trim(); doubaoChatModel = modelNameInput.value.trim(); doubaoImageGenModel = imageGenModelInput.value.trim(); localStorage.setItem("doubao_api_key", doubaoApiKey); localStorage.setItem("doubao_endpoint", doubaoChatEndpoint); localStorage.setItem("doubao_model", doubaoChatModel); localStorage.setItem("doubao_image_gen_model", doubaoImageGenModel); alert("已保存"); apiKeyModal.style.display = "none"; };
-    cancelApiKey.onclick = () => apiKeyModal.style.display = "none";
-    databaseBtn.onclick = () => window.open("https://quickform.cn/task/37488/data", "_blank");
-    if (importToDatabaseBtn) importToDatabaseBtn.addEventListener("click", importSelectedToDatabase);
-    if (viewDatabaseBtn) viewDatabaseBtn.addEventListener("click", () => { window.open("https://quickform.cn/task/42707/data", "_blank"); });
+    composePaperBtn.onclick=()=>{ buildImportedPool(); questionPoolModal.style.display="flex"; };
+    selectAllBtn.onclick=()=>{ const c=document.querySelectorAll('.pool-checkbox'); const any=Array.from(c).some(cb=>!cb.checked); c.forEach(cb=>cb.checked=any); };
+    generatePaperFromPoolBtn.onclick=generatePaperFromImported;
+    closePoolBtn.onclick=()=>questionPoolModal.style.display="none";
+    exportPdfBtn.onclick=exportPdfDirect;
+    closePaperBtn.onclick=()=>paperModal.style.display="none";
+    gradeVersionFilter.onchange=e=>{ currentGradeVersionFilter=e.target.value; applyFilterAndRender(); };
+    unitFilter.onchange=e=>{ currentUnitFilter=e.target.value; applyFilterAndRender(); };
+    sortSelect.onchange=e=>{ currentSort=e.target.value; applyFilterAndRender(); };
+    searchBtn.onclick=()=>{ searchInput.classList.toggle('show'); if(searchInput.classList.contains('show')) searchInput.focus(); else{ currentKeywordFilter=""; applyFilterAndRender(); } };
+    searchInput.addEventListener('keyup',()=>{ currentKeywordFilter=searchInput.value; applyFilterAndRender(); });
+    window.openImageModal=(src)=>{ const d=document.createElement('div'); d.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;justify-content:center;align-items:center;z-index:3000;'; const img=document.createElement('img'); img.src=src; img.style.maxWidth='90%'; img.style.maxHeight='90%'; d.appendChild(img); d.onclick=()=>d.remove(); document.body.appendChild(d); };
+    function resetUploadModal(){ currentImageBase64=""; previewImg.style.display="none"; previewImg.src=""; cropSection.style.display="none"; if(cropper) cropper.destroy(); mistakeDesc.value=""; ocrStatus.innerText=""; currentTags=[]; renderTags(); }
+    uploadArea.onclick=()=>fileInput.click();
+    fileInput.onchange=e=>{ if(e.target.files[0]){ const reader=new FileReader(); reader.onload=ev=>{ currentImageBase64=ev.target.result; showCropModal(currentImageBase64); }; reader.readAsDataURL(e.target.files[0]); } };
+    submitMistakeBtn.onclick=async()=>{ if(cropper){ alert("请完成裁剪或取消"); return; } const desc=mistakeDesc.value.trim(); if(!desc && !currentImageBase64){ alert("请填写描述或上传图片"); return; } const gv=bookGradeSelect.value, unit=unitSelect.value; if(!gv || !unit){ alert("请选择年级和单元"); return; } await addMistake(desc,currentImageBase64,currentTags,gv,unit); uploadModal.style.display="none"; resetUploadModal(); await fetchMistakesAndStats(); };
+    cancelUpload.onclick=()=>{ if(cropper) hideCropModal(); uploadModal.style.display="none"; resetUploadModal(); };
+    addBtn.onclick=()=>{ resetUploadModal(); uploadModal.style.display="flex"; if(Object.keys(curriculumFramework).length===0) alert("请先上传教材目录"); };
+    apiKeyBtn.onclick=()=>{ apiKeyInput.value=doubaoApiKey; apiEndpointInput.value=doubaoChatEndpoint; modelNameInput.value=doubaoChatModel; imageGenModelInput.value=doubaoImageGenModel; apiKeyModal.style.display="flex"; };
+    saveApiKey.onclick=()=>{ doubaoApiKey=apiKeyInput.value.trim(); doubaoChatEndpoint=apiEndpointInput.value.trim(); doubaoChatModel=modelNameInput.value.trim(); doubaoImageGenModel=imageGenModelInput.value.trim(); localStorage.setItem("doubao_api_key",doubaoApiKey); localStorage.setItem("doubao_endpoint",doubaoChatEndpoint); localStorage.setItem("doubao_model",doubaoChatModel); localStorage.setItem("doubao_image_gen_model",doubaoImageGenModel); alert("已保存"); apiKeyModal.style.display="none"; };
+    cancelApiKey.onclick=()=>apiKeyModal.style.display="none";
+    databaseBtn.onclick=()=>window.open("https://quickform.cn/task/37488/data","_blank");
+    if(importToDatabaseBtn) importToDatabaseBtn.addEventListener("click", importSelectedToDatabase);
+    if(viewDatabaseBtn) viewDatabaseBtn.addEventListener("click", ()=>{ window.open("https://quickform.cn/task/42707/data","_blank"); });
     
-    async function fetchMistakesAndStats() { await fetchMistakes(); await fetchAccuracyData(); }
-    refreshDataBtn.onclick = () => { fetchMistakesAndStats(); };
-    loadImported();
-    refreshGradeSelectors();
-    fetchMistakesAndStats();
-    fetchTextbookFromDatabase();
+    async function fetchMistakesAndStats(){ await fetchMistakes(); await fetchAccuracyData(); }
+    refreshDataBtn.onclick = ()=>{ fetchMistakesAndStats(); };
+    loadImported(); refreshGradeSelectors(); fetchMistakesAndStats(); fetchTextbookFromDatabase();
 </script>
 </body>
 </html>
