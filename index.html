@@ -12,6 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
+        /* 样式保持不变（略） */
         *{margin:0;padding:0;box-sizing:border-box}
         body{background:#f0f7ff;font-family:'Segoe UI',system-ui,sans-serif;padding:1.5rem;color:#1a2c3e}
         .container{max-width:1400px;margin:0 auto}
@@ -122,7 +123,7 @@
 </div>
 
 <!-- 模态框 -->
-<div id="uploadModal" class="modal"><div class="modal-content"><h3>📸 收集新错题</h3><div class="upload-area" id="uploadArea"><div>📷 点击上传 / Ctrl+V 粘贴截图</div><input type="file" id="fileInput" accept="image/*" style="display:none"><img id="previewImg" class="image-preview"></div><div id="cropSection" style="display:none"><div class="crop-container"><img id="cropImage" class="crop-image"></div><div class="crop-buttons"><button id="cropConfirmBtn" class="btn-sm btn-sm-primary">✓ 应用裁剪</button><button id="cropCancelBtn" class="btn-sm">✗ 取消</button></div></div><div class="form-group"><label>错题描述</label><div style="display:flex; gap:8px"><textarea id="mistakeDesc" rows="2" style="flex:1"></textarea><button id="ocrBtn" class="ocr-btn" style="white-space:nowrap">🔍 OCR识别</button></div><div id="ocrStatus" style="font-size:.7rem;color:#6c8dae"></div></div><div class="form-group"><label>🏷️ 自定义标签</label><div class="tag-input-container" id="tagContainer"></div></div><div class="form-group"><label>教材位置</label><div class="inline-select-group"><select id="bookGradeSelect" style="flex:1"><option>请先上传教材目录</option></select><select id="unitSelect" style="flex:2"><option>请先选择年级</option></select></div></div><div class="form-group"><div class="checkbox-wrapper"><input type="checkbox" id="needIllustrationCheckbox"> <span>✨ 自动配图（AI变式时生成配图）</span></div><div class="hint-text">勾选后，该错题生成的AI变式将自动拥有配图</div></div><div style="display:flex; gap:10px; justify-content:flex-end"><button id="cancelUpload" class="btn-outline">取消</button><button id="submitMistake" class="btn-primary">提交</button></div></div></div>
+<div id="uploadModal" class="modal"><div class="modal-content"><h3>📸 收集新错题</h3><div class="upload-area" id="uploadArea"><div>📷 点击上传 / Ctrl+V 粘贴截图</div><input type="file" id="fileInput" accept="image/*" style="display:none"><img id="previewImg" class="image-preview"></div><div id="cropSection" style="display:none"><div class="crop-container"><img id="cropImage" class="crop-image"></div><div class="crop-buttons"><button id="cropConfirmBtn" class="btn-sm btn-sm-primary">✓ 应用裁剪</button><button id="cropCancelBtn" class="btn-sm">✗ 取消</button></div></div><div class="form-group"><label>错题描述</label><div style="display:flex; gap:8px"><textarea id="mistakeDesc" rows="2" style="flex:1"></textarea><button id="ocrBtn" class="ocr-btn" style="white-space:nowrap">🔍 OCR识别</button></div><div id="ocrStatus" style="font-size:.7rem;color:#6c8dae"></div></div><div class="form-group"><label>🏷️ 自定义标签</label><div class="tag-input-container" id="tagContainer"></div></div><div class="form-group"><label>教材位置</label><div class="inline-select-group"><select id="bookGradeSelect" style="flex:1"><option value="">请先上传教材目录</option></select><select id="unitSelectForTextbook" style="flex:2"><option value="">请先选择年级</option></select></div></div><div class="form-group"><div class="checkbox-wrapper"><input type="checkbox" id="needIllustrationCheckbox"> <span>✨ 自动配图（AI变式时生成配图）</span></div><div class="hint-text">勾选后，该错题生成的AI变式将自动拥有配图</div></div><div style="display:flex; gap:10px; justify-content:flex-end"><button id="cancelUpload" class="btn-outline">取消</button><button id="submitMistake" class="btn-primary">提交</button></div></div></div>
 <div id="textbookModal" class="modal"><div class="modal-content"><h3>📚 上传教材目录</h3><div class="upload-area" id="textbookUploadArea"><div>📄 点击上传 .docx 或 .pdf</div><input type="file" id="textbookFileInput" accept=".docx,.pdf"></div><div id="textbookStatus" style="font-size:.75rem;margin:8px 0"></div><div class="delete-icon-row"><button id="deleteTextbookBtn" class="btn-delete-icon">✕</button></div><div style="display:flex; justify-content:flex-end"><button id="cancelTextbook" class="btn-outline">关闭</button></div></div></div>
 <div id="apiKeyModal" class="modal"><div class="modal-content"><h3>🔑 设置豆包模型 API</h3><div class="form-group"><label>API Key</label><input type="password" id="apiKeyInput" value="ark-ff1505b4-a605-4fc0-9dca-3e9c0c1d690c-dbc4e"></div><div class="form-group"><label>对话模型Endpoint</label><input type="text" id="apiEndpointInput" value="https://ark.cn-beijing.volces.com/api/v3/chat/completions"></div><div class="form-group"><label>对话模型名称</label><input type="text" id="modelNameInput" value="doubao-seed-2-0-pro-260215"></div><div class="form-group"><label>图片生成模型名称</label><input type="text" id="imageGenModelInput" value="doubao-seedream-5-0-260128"></div><div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px"><button id="cancelApiKey" class="btn-outline">取消</button><button id="saveApiKey" class="btn-primary">保存</button></div></div></div>
 <div id="questionPoolModal" class="modal"><div class="modal-content question-pool-modal"><h3>📚 个人题库</h3><div id="poolContent" style="margin:16px 0"></div><div style="display:flex; justify-content:space-between"><div style="display:flex; gap:8px"><button id="selectAllBtn" class="btn-sm">全选</button><button id="importToDatabaseBtn" class="btn-sm" style="background:#e7f0ff">导入</button><button id="viewDatabaseBtn" class="btn-sm">📊</button></div><div><button id="generatePaperFromPoolBtn" class="btn-primary">生成试卷</button><button id="closePoolBtn" class="btn-outline">关闭</button></div></div></div></div>
@@ -164,7 +165,7 @@
     const tagFilterDiv = document.getElementById("tagFilterButtons");
     const tagContainer = document.getElementById("tagContainer");
     const bookGradeSelect = document.getElementById("bookGradeSelect");
-    const unitSelectDom = document.getElementById("unitSelect");
+    const unitSelectForTextbook = document.getElementById("unitSelectForTextbook");
     const needIllustrationCheckbox = document.getElementById("needIllustrationCheckbox");
     const importBadge = document.getElementById("importBadge");
     const searchBtn = document.getElementById("searchBtn");
@@ -373,14 +374,47 @@
     // ================= 自定义标签输入 =================
     function renderTags(){ if(!tagContainer) return; tagContainer.innerHTML=''; currentTempTags.forEach((tag,idx)=>{ let div=document.createElement('div'); div.className='tag-item'; div.innerHTML=`${escapeHtml(tag)} <button data-idx="${idx}" class="remove-tag">✕</button>`; tagContainer.appendChild(div); }); let input=document.createElement('input'); input.type='text'; input.className='tag-input'; input.placeholder='输入标签，按回车...'; input.addEventListener('keypress',(e)=>{ if(e.key==='Enter'&&e.target.value.trim()){ let val=e.target.value.trim(); if(!currentTempTags.includes(val)){ currentTempTags.push(val); renderTags(); } e.target.value=''; } }); tagContainer.appendChild(input); document.querySelectorAll('.remove-tag').forEach(btn=>btn.addEventListener('click',(e)=>{ let idx=parseInt(btn.dataset.idx); if(!isNaN(idx)){ currentTempTags.splice(idx,1); renderTags(); } })); }
     
-    // ================= 教材目录 =================
+    // ================= 教材目录相关（年级+单元联动） =================
     async function parseCurriculum(file){ let ext=file.name.split('.').pop().toLowerCase(); let raw=""; if(ext==='docx'){ let buf=await file.arrayBuffer(); let res=await mammoth.extractRawText({arrayBuffer:buf}); raw=res.value; } else if(ext==='pdf'){ let buf=await file.arrayBuffer(); let pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise; for(let i=1;i<=pdf.numPages;i++){ let page=await pdf.getPage(i); let txt=await page.getTextContent(); raw+=txt.items.map(t=>t.str).join(' ')+"\n"; } } else throw new Error("不支持"); let lines=raw.split(/\r?\n/); let fw={}; let cur=null; let gradeRe=/([一二三四五六]年级[上下]册)/; let unitPatterns=[/第?[一二三四五六七八九十]+单元/,/^[一二三四五六七八九十]+[、.．]/,/综合实践/,/数学好玩/,/整理与复习/,/总复习/,/我上学啦/,/生活中的数/]; function isUnitLine(l){ for(let p of unitPatterns) if(p.test(l)) return true; return false; } for(let line of lines){ line=line.trim(); if(!line) continue; if(gradeRe.test(line)){ cur=line.match(gradeRe)[1]; if(!fw[cur]) fw[cur]=[]; } else if(cur&&isUnitLine(line)){ let unitName=line.replace(/^第?[一二三四五六七八九十]+单元\s*/,'').replace(/^[一二三四五六七八九十]+[、.．]\s*/,''); if(!unitName) unitName=line; if(!fw[cur].includes(unitName)) fw[cur].push(unitName); } } if(!Object.keys(fw).length) throw new Error("未识别到年级单元结构"); return fw; }
     async function uploadTextbookToDatabase(framework){ try{ let r=await fetch(TEXTBOOK_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({timestamp:new Date().toISOString(),framework,note:"教材目录"})}); return r.ok; }catch(e){return false} }
     async function deleteTextbookFromDatabase(){ try{ await fetch(TEXTBOOK_API+"/clear",{method:"DELETE"}); return true; }catch(e){return false} }
     async function fetchTextbookFromDatabase(){ try{ let r=await fetch(TEXTBOOK_API+"/all"); if(!r.ok) throw new Error(); let d=await r.json(); if(d&&Array.isArray(d.submissions)&&d.submissions.length){ let latest=d.submissions.sort((a,b)=>new Date(b.submitted_at)-new Date(a.submitted_at))[0]; if(latest.framework&&typeof latest.framework==="object"){ curriculumFramework=latest.framework; localStorage.setItem(CURRICULUM_KEY,JSON.stringify(curriculumFramework)); refreshGradeSelectors(); if(textbookStatus) textbookStatus.innerText=`📚 已从云端加载 ${Object.keys(curriculumFramework).length} 个年级`; return; } } if(textbookStatus) textbookStatus.innerText=`本地教材目录 ${Object.keys(curriculumFramework).length} 个年级`; }catch(err){ if(textbookStatus) textbookStatus.innerText=`本地教材目录 ${Object.keys(curriculumFramework).length} 个年级`; } }
-    function refreshGradeSelectors(){ let grades=Object.keys(curriculumFramework); if(!grades.length){ bookGradeSelect.innerHTML='<option>请先上传目录</option>'; unitSelectDom.innerHTML='<option>无数据</option>'; return; } bookGradeSelect.innerHTML='<option value="">请选择年级</option>'; grades.forEach(g=>{let opt=document.createElement('option'); opt.value=g; opt.textContent=g; bookGradeSelect.appendChild(opt);}); if(grades.includes("一年级上册")) bookGradeSelect.value="一年级上册"; else if(grades.length) bookGradeSelect.value=grades[0]; updateUnitByGrade(bookGradeSelect.value); }
-    function updateUnitByGrade(grade){ if(!grade||!curriculumFramework[grade]){ unitSelectDom.innerHTML='<option>无单元</option>'; return; } unitSelectDom.innerHTML='<option value="">请选择单元</option>'; curriculumFramework[grade].forEach(u=>{let opt=document.createElement('option'); opt.value=u; opt.textContent=u; unitSelectDom.appendChild(opt);}); }
-    async function saveFramework(){ localStorage.setItem(CURRICULUM_KEY,JSON.stringify(curriculumFramework)); refreshGradeSelectors(); if(textbookStatus) textbookStatus.innerText=`✅ 已加载 ${Object.keys(curriculumFramework).length} 个年级`; textbookStatus.innerText="📤 正在上传至数据库..."; let ok=await uploadTextbookToDatabase(curriculumFramework); if(ok&&textbookStatus) textbookStatus.innerText=`✅ 已加载 ${Object.keys(curriculumFramework).length} 个年级 (已同步云端)`; else if(textbookStatus) textbookStatus.innerText=`⚠️ 本地加载成功，但云端同步失败`; }
+    function refreshGradeSelectors(){ 
+        let grades=Object.keys(curriculumFramework); 
+        if(!grades.length){ 
+            bookGradeSelect.innerHTML='<option value="">请先上传教材目录</option>'; 
+            unitSelectForTextbook.innerHTML='<option value="">请先选择年级</option>'; 
+            return; 
+        } 
+        bookGradeSelect.innerHTML='<option value="">请选择年级</option>'; 
+        grades.forEach(g=>{let opt=document.createElement('option'); opt.value=g; opt.textContent=g; bookGradeSelect.appendChild(opt);}); 
+        // 默认选中第一个年级（如果有）
+        if(grades.length) {
+            bookGradeSelect.value = grades[0];
+            updateUnitByGrade(grades[0]);
+        } else {
+            unitSelectForTextbook.innerHTML='<option value="">无单元</option>';
+        }
+    }
+    function updateUnitByGrade(grade){ 
+        if(!grade||!curriculumFramework[grade]){ 
+            unitSelectForTextbook.innerHTML='<option value="">请先选择有效年级</option>'; 
+            return; 
+        } 
+        unitSelectForTextbook.innerHTML='<option value="">请选择单元</option>'; 
+        curriculumFramework[grade].forEach(u=>{let opt=document.createElement('option'); opt.value=u; opt.textContent=u; unitSelectForTextbook.appendChild(opt);}); 
+    }
+    bookGradeSelect.addEventListener("change",e=>updateUnitByGrade(e.target.value));
+    
+    async function saveFramework(){ 
+        localStorage.setItem(CURRICULUM_KEY,JSON.stringify(curriculumFramework)); 
+        refreshGradeSelectors(); 
+        if(textbookStatus) textbookStatus.innerText=`✅ 已加载 ${Object.keys(curriculumFramework).length} 个年级`; 
+        textbookStatus.innerText="📤 正在上传至数据库..."; 
+        let ok=await uploadTextbookToDatabase(curriculumFramework); 
+        if(ok&&textbookStatus) textbookStatus.innerText=`✅ 已加载 ${Object.keys(curriculumFramework).length} 个年级 (已同步云端)`; 
+        else if(textbookStatus) textbookStatus.innerText=`⚠️ 本地加载成功，但云端同步失败`; 
+    }
     
     // ================= 事件绑定 =================
     gradeVersionFilter.onchange=e=>{currentGrade=e.target.value; applyFilterAndRender();};
@@ -395,7 +429,7 @@
     ocrBtn.addEventListener("click",()=>performOCR(currentImageBase64));
     cropConfirmBtn.addEventListener("click",applyCrop);
     cropCancelBtn.addEventListener("click",hideCropModal);
-    submitMistake.onclick=async()=>{ if(cropper){ alert("请完成裁剪或取消"); return; } let desc=mistakeDesc.value.trim(); if(!desc&&!currentImageBase64){ alert("请填写描述或上传图片"); return; } let gv=bookGradeSelect.value, unit=unitSelectDom.value; if(!gv||!unit){ alert("请选择年级和单元"); return; } await addMistake(desc,currentImageBase64,currentTempTags,gv,unit); uploadModal.style.display="none"; resetUploadModal(); await fetchMistakesAndStats(); };
+    submitMistake.onclick=async()=>{ if(cropper){ alert("请完成裁剪或取消"); return; } let desc=mistakeDesc.value.trim(); if(!desc&&!currentImageBase64){ alert("请填写描述或上传图片"); return; } let gv=bookGradeSelect.value, unit=unitSelectForTextbook.value; if(!gv||!unit){ alert("请选择年级和单元"); return; } await addMistake(desc,currentImageBase64,currentTempTags,gv,unit); uploadModal.style.display="none"; resetUploadModal(); await fetchMistakesAndStats(); };
     cancelUpload.onclick=()=>{ if(cropper) hideCropModal(); uploadModal.style.display="none"; resetUploadModal(); };
     addBtn.onclick=()=>{ 
         resetUploadModal(); 
@@ -405,7 +439,7 @@
     apiKeyBtn.onclick=()=>{ apiKeyInput.value=doubaoApiKey; apiEndpointInput.value=doubaoEndpoint; modelNameInput.value=doubaoModel; imageGenModelInput.value=doubaoImgModel; apiKeyModal.style.display="flex"; };
     saveApiKey.onclick=()=>{ doubaoApiKey=apiKeyInput.value.trim(); doubaoEndpoint=apiEndpointInput.value.trim(); doubaoModel=modelNameInput.value.trim(); doubaoImgModel=imageGenModelInput.value.trim(); localStorage.setItem("doubao_api_key",doubaoApiKey); localStorage.setItem("doubao_endpoint",doubaoEndpoint); localStorage.setItem("doubao_model",doubaoModel); localStorage.setItem("doubao_image_gen_model",doubaoImgModel); alert("已保存"); apiKeyModal.style.display="none"; };
     cancelApiKey.onclick=()=>apiKeyModal.style.display="none";
-    databaseBtn.onclick=()=>window.open("https://quickform.cn/task/37488/data","_blank");
+    databaseBtn.onclick=()=>window.open("https://wzkjgz.site/task/305/data","_blank");
     uploadTextbookBtn.onclick=()=>textbookModal.style.display="flex";
     textbookUploadArea.onclick=()=>textbookFileInput.click();
     textbookFileInput.onchange=async e=>{ let file=e.target.files[0]; if(file&&(file.type==="application/vnd.openxmlformats-officedocument.wordprocessingml.document"||file.type==="application/pdf")){ textbookStatus.innerText="解析中..."; try{ curriculumFramework=await parseCurriculum(file); await saveFramework(); textbookModal.style.display="none"; }catch(err){ textbookStatus.innerText="解析失败"; } textbookFileInput.value=''; } else alert("请上传docx或pdf"); };
