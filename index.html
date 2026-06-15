@@ -12,7 +12,6 @@
     <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        /* 样式保持不变（略） */
         *{margin:0;padding:0;box-sizing:border-box}
         body{background:#f0f7ff;font-family:'Segoe UI',system-ui,sans-serif;padding:1.5rem;color:#1a2c3e}
         .container{max-width:1400px;margin:0 auto}
@@ -50,7 +49,8 @@
         .pie-canvas{width:100%;height:100%}
         .accuracy-text{flex:1;font-size:.75rem;white-space:nowrap;overflow-x:auto}
         .content-area{padding:.8rem 1rem;flex:1}
-        .mistake-text{font-size:.9rem;line-height:1.45;background:#fafdff;padding:.5rem .7rem;border-radius:18px;border-left:3px solid #8fcbff}
+        /* 题目文本显示框改为直角矩形 */
+        .mistake-text{font-size:.9rem;line-height:1.45;background:#fafdff;padding:.5rem .7rem;border-radius:0;border-left:3px solid #8fcbff}
         .image-container{background:#f9fafc;border-radius:20px;display:flex;justify-content:center;cursor:pointer}
         .mistake-img{max-width:100%;max-height:180px;object-fit:contain;border-radius:16px}
         .card-footer{padding:.6rem 1rem .8rem;border-top:1px solid #edf2f7;display:flex;gap:8px}
@@ -69,6 +69,10 @@
         .tag-item{background:#eef2ff;padding:4px 10px;border-radius:30px;font-size:.75rem;display:inline-flex;align-items:center;gap:6px;color:#1e6f9f}
         .tag-item button{background:none;border:none;cursor:pointer;color:#888}
         .tag-input{border:none;outline:none;flex:1;min-width:80px;padding:4px 0}
+        .existing-tags-area{margin-bottom:12px;padding:8px;background:#f9fafc;border-radius:20px;border:1px solid #eef2f8}
+        .existing-tags-title{font-size:.7rem;color:#6c8dae;margin-bottom:6px;font-weight:500}
+        .existing-tag-btn{background:#eef3fc;border:1px solid #cde0ef;border-radius:30px;padding:3px 10px;font-size:.7rem;cursor:pointer;color:#1e6f9f;margin:0 4px 6px 0;display:inline-block;transition:.1s}
+        .existing-tag-btn:hover{background:#e2edf7;border-color:#1e6f9f}
         .inline-select-group{display:flex;gap:8px}
         .checkbox-wrapper{display:flex;align-items:center;gap:10px;margin-top:4px}
         .checkbox-wrapper input{width:auto;transform:scale(1.1)}
@@ -92,6 +96,58 @@
         .export-question-image{max-width:100%;max-height:200px}
         .error-message{background:#ffe8e8;color:#c44;padding:1rem;border-radius:28px;text-align:center;margin-top:1rem}
         .compress-status{font-size:.7rem;color:#2c6e9e;margin-top:4px;text-align:center}
+        
+        /* ========== 统一圆角按钮样式 ========== */
+        .copy-all-variant, .regenerate-btn, .hide-btn, .generate-img-btn, .import-btn, .ocr-btn,
+        .variant-header-inline button, .image-actions button, .config-buttons .btn-sm {
+            background: #eef3fc;
+            border: 1px solid #cde0ef;
+            border-radius: 40px;
+            padding: 4px 12px;
+            font-size: 0.7rem;
+            color: #1e6f9f;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 500;
+        }
+        .copy-all-variant:hover, .regenerate-btn:hover, .hide-btn:hover, 
+        .generate-img-btn:hover, .import-btn:hover, .ocr-btn:hover,
+        .variant-header-inline button:hover, .image-actions button:hover,
+        .config-buttons .btn-sm:hover {
+            background: #e2edf7;
+            border-color: #1e6f9f;
+            transform: translateY(-1px);
+        }
+        .copy-all-variant:active, .regenerate-btn:active, .hide-btn:active,
+        .generate-img-btn:active, .import-btn:active, .ocr-btn:active,
+        .variant-header-inline button:active, .image-actions button:active {
+            transform: translateY(0);
+        }
+        .cancel-config {
+            background: #fff0f0;
+            border-color: #f0c0c0;
+            color: #c44;
+        }
+        .cancel-config:hover {
+            background: #ffe0e0;
+            border-color: #c44;
+        }
+        .confirm-generate {
+            background: #1e6f9f;
+            border-color: #1e6f9f;
+            color: white;
+        }
+        .confirm-generate:hover {
+            background: #0f5a85;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
     </style>
 </head>
 <body>
@@ -123,9 +179,9 @@
 </div>
 
 <!-- 模态框 -->
-<div id="uploadModal" class="modal"><div class="modal-content"><h3>📸 收集新错题</h3><div class="upload-area" id="uploadArea"><div>📷 点击上传 / Ctrl+V 粘贴截图</div><input type="file" id="fileInput" accept="image/*" style="display:none"><img id="previewImg" class="image-preview"></div><div id="cropSection" style="display:none"><div class="crop-container"><img id="cropImage" class="crop-image"></div><div class="crop-buttons"><button id="cropConfirmBtn" class="btn-sm btn-sm-primary">✓ 应用裁剪</button><button id="cropCancelBtn" class="btn-sm">✗ 取消</button></div></div><div class="form-group"><label>错题描述</label><div style="display:flex; gap:8px"><textarea id="mistakeDesc" rows="2" style="flex:1"></textarea><button id="ocrBtn" class="ocr-btn" style="white-space:nowrap">🔍 OCR识别</button></div><div id="ocrStatus" style="font-size:.7rem;color:#6c8dae"></div></div><div class="form-group"><label>🏷️ 自定义标签</label><div class="tag-input-container" id="tagContainer"></div></div><div class="form-group"><label>教材位置</label><div class="inline-select-group"><select id="bookGradeSelect" style="flex:1"><option value="">请先上传教材目录</option></select><select id="unitSelectForTextbook" style="flex:2"><option value="">请先选择年级</option></select></div></div><div class="form-group"><div class="checkbox-wrapper"><input type="checkbox" id="needIllustrationCheckbox"> <span>✨ 自动配图（AI变式时生成配图）</span></div><div class="hint-text">勾选后，该错题生成的AI变式将自动拥有配图</div></div><div style="display:flex; gap:10px; justify-content:flex-end"><button id="cancelUpload" class="btn-outline">取消</button><button id="submitMistake" class="btn-primary">提交</button></div></div></div>
+<div id="uploadModal" class="modal"><div class="modal-content"><h3>📸 收集新错题</h3><div class="upload-area" id="uploadArea"><div>📷 点击上传 / Ctrl+V 粘贴截图</div><input type="file" id="fileInput" accept="image/*" style="display:none"><img id="previewImg" class="image-preview"></div><div id="cropSection" style="display:none"><div class="crop-container"><img id="cropImage" class="crop-image"></div><div class="crop-buttons"><button id="cropConfirmBtn" class="btn-sm btn-sm-primary">✓ 应用裁剪</button><button id="cropCancelBtn" class="btn-sm">✗ 取消</button></div></div><div class="form-group"><label>错题描述</label><div style="display:flex; gap:8px"><textarea id="mistakeDesc" rows="2" style="flex:1"></textarea><button id="ocrBtn" class="ocr-btn" style="white-space:nowrap">🔍 OCR识别</button></div><div id="ocrStatus" style="font-size:.7rem;color:#6c8dae"></div></div><div class="form-group"><label>🏷️ 自定义标签</label><div id="existingTagsArea" class="existing-tags-area" style="display:none;"><div class="existing-tags-title">📌 点击下方已有标签快速添加：</div><div id="existingTagsList"></div></div><div class="tag-input-container" id="tagContainer"></div></div><div class="form-group"><label>教材位置</label><div class="inline-select-group"><select id="bookGradeSelect" style="flex:1"><option value="">请先上传教材目录</option></select><select id="unitSelectForTextbook" style="flex:2"><option value="">请先选择年级</option></select></div></div><div class="form-group"><div class="checkbox-wrapper"><input type="checkbox" id="needIllustrationCheckbox"> <span>✨ 自动配图（AI变式时生成配图）</span></div><div class="hint-text">勾选后，该错题生成的AI变式将自动拥有配图</div></div><div style="display:flex; gap:10px; justify-content:flex-end"><button id="cancelUpload" class="btn-outline">取消</button><button id="submitMistake" class="btn-primary">提交</button></div></div></div>
 <div id="textbookModal" class="modal"><div class="modal-content"><h3>📚 上传教材目录</h3><div class="upload-area" id="textbookUploadArea"><div>📄 点击上传 .docx 或 .pdf</div><input type="file" id="textbookFileInput" accept=".docx,.pdf"></div><div id="textbookStatus" style="font-size:.75rem;margin:8px 0"></div><div class="delete-icon-row"><button id="deleteTextbookBtn" class="btn-delete-icon">✕</button></div><div style="display:flex; justify-content:flex-end"><button id="cancelTextbook" class="btn-outline">关闭</button></div></div></div>
-<div id="apiKeyModal" class="modal"><div class="modal-content"><h3>🔑 设置豆包模型 API</h3><div class="form-group"><label>API Key</label><input type="password" id="apiKeyInput" value="ark-ff1505b4-a605-4fc0-9dca-3e9c0c1d690c-dbc4e"></div><div class="form-group"><label>对话模型Endpoint</label><input type="text" id="apiEndpointInput" value="https://ark.cn-beijing.volces.com/api/v3/chat/completions"></div><div class="form-group"><label>对话模型名称</label><input type="text" id="modelNameInput" value="doubao-seed-2-0-pro-260215"></div><div class="form-group"><label>图片生成模型名称</label><input type="text" id="imageGenModelInput" value="doubao-seedream-5-0-260128"></div><div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px"><button id="cancelApiKey" class="btn-outline">取消</button><button id="saveApiKey" class="btn-primary">保存</button></div></div></div>
+<div id="apiKeyModal" class="modal"><div class="modal-content"><h3>🔑 设置豆包模型 API</h3><div class="form-group"><label>API Key</label><input type="password" id="apiKeyInput" value="ark-ff1505b4-a605-4fc0-9dca-3e9c0c1d690c-dbc4e"></div><div class="form-group"><label>对话模型Endpoint</label><input type="text" id="apiEndpointInput" value="https://ark.cn-beijing.volces.com/api/v3/chat/completions"></div><div class="form-group"><label>对话模型名称</label><input type="text" id="modelNameInput" value="doubao-seed-2-0-lite-260428"></div><div class="form-group"><label>图片生成模型名称</label><input type="text" id="imageGenModelInput" value="doubao-seedream-5-0-260128"></div><div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px"><button id="cancelApiKey" class="btn-outline">取消</button><button id="saveApiKey" class="btn-primary">保存</button></div></div></div>
 <div id="questionPoolModal" class="modal"><div class="modal-content question-pool-modal"><h3>📚 个人题库</h3><div id="poolContent" style="margin:16px 0"></div><div style="display:flex; justify-content:space-between"><div style="display:flex; gap:8px"><button id="selectAllBtn" class="btn-sm">全选</button><button id="importToDatabaseBtn" class="btn-sm" style="background:#e7f0ff">导入</button><button id="viewDatabaseBtn" class="btn-sm">📊</button></div><div><button id="generatePaperFromPoolBtn" class="btn-primary">生成试卷</button><button id="closePoolBtn" class="btn-outline">关闭</button></div></div></div></div>
 <div id="paperModal" class="modal"><div class="modal-content paper-modal"><h3>📄 试卷预览</h3><div class="paper-content-wrapper"><div id="paperContent" class="paper-export"></div></div><div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px"><button id="exportPdfBtn" class="btn-primary">📑 导出 PDF</button><button id="closePaperBtn" class="btn-outline">关闭</button></div></div></div>
 
@@ -139,7 +195,7 @@
     let importedQuestions = [], curriculumFramework = JSON.parse(localStorage.getItem(CURRICULUM_KEY) || "{}");
     let doubaoApiKey = localStorage.getItem("doubao_api_key") || "ark-ff1505b4-a605-4fc0-9dca-3e9c0c1d690c-dbc4e";
     let doubaoEndpoint = localStorage.getItem("doubao_endpoint") || "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
-    let doubaoModel = localStorage.getItem("doubao_model") || "doubao-seed-2-0-pro-260215";
+    let doubaoModel = localStorage.getItem("doubao_model") || "doubao-seed-2-0-lite-260428";
     let doubaoImgModel = localStorage.getItem("doubao_image_gen_model") || "doubao-seedream-5-0-260128";
     let cropper = null, currentImageBase64 = "", currentTempTags = [], accuracyStats = {};
     let currentPaperHtml = "";
@@ -200,6 +256,14 @@
     const exportPdfBtn = document.getElementById("exportPdfBtn");
     const closePaperBtn = document.getElementById("closePaperBtn");
     
+    // ================= 安全ID生成函数 =================
+    function generateSafeId(rawId) {
+        if (!rawId) return 'id_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+        let safe = rawId.replace(/[^a-zA-Z0-9_-]/g, '_');
+        if (!safe || /^\d/.test(safe)) safe = 'id_' + safe;
+        return safe;
+    }
+    
     // ================= 辅助函数 =================
     function escapeHtml(str) { return str ? str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;') : ''; }
     function formatTime(t){ if(!t) return '未知'; let d=new Date(t); if(isNaN(d)) return '无效'; return `${d.getFullYear().toString().slice(-2)}/${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
@@ -218,7 +282,7 @@
             let d=await r.json(); 
             if(d && Array.isArray(d.submissions)) {
                 mistakeList = d.submissions.map(s=>({
-                    id:s.id||`m_${Date.now()}_${Math.random()}`,
+                    id: generateSafeId(s.id || `m_${Date.now()}_${Math.random()}`),
                     text:s.text||"",
                     image_base64:s.image_base64||"",
                     has_image:!!(s.image_base64&&s.image_base64.length>50),
@@ -244,15 +308,117 @@
             mistakeList = [];
         } 
     }
-    async function addMistake(text,img,tags,gv,unit){ let finalTags=[...tags]; if(gv&&!finalTags.includes(gv)) finalTags.push(gv); if(unit&&!finalTags.includes(unit)) finalTags.push(unit); let oid=generateOriginalId(text,gv,unit); let needIll=needIllustrationCheckbox.checked; let fd=new FormData(); fd.append("text",text); fd.append("has_image",img?"true":"false"); if(img) fd.append("image_base64",img); fd.append("tags",finalTags.join(",")); fd.append("gradeVersion",gv); fd.append("unit",unit); fd.append("originalId",oid); fd.append("need_illustration",needIll?"true":"false"); try{ await fetch(API_BASE,{method:"POST",body:fd}); return true; }catch(e){ mistakeList.unshift({id:Date.now().toString(), text, image_base64:img||"", has_image:!!img, tags:finalTags, variants:null, gradeVersion:gv, unit, originalId:oid, submitted_at:new Date().toISOString(), need_illustration:needIll }); updateFilters(); renderTagFilters(); applyFilterAndRender(); initSortable(); return false; } }
+    async function addMistake(text,img,tags,gv,unit){ 
+        let finalTags=[...tags]; 
+        if(gv&&!finalTags.includes(gv)) finalTags.push(gv); 
+        if(unit&&!finalTags.includes(unit)) finalTags.push(unit); 
+        let oid=generateOriginalId(text,gv,unit); 
+        let needIll=needIllustrationCheckbox.checked; 
+        let fd=new FormData(); 
+        fd.append("text",text); 
+        fd.append("has_image",img?"true":"false"); 
+        if(img) fd.append("image_base64",img); 
+        fd.append("tags",finalTags.join(",")); 
+        fd.append("gradeVersion",gv); 
+        fd.append("unit",unit); 
+        fd.append("originalId",oid); 
+        fd.append("need_illustration",needIll?"true":"false"); 
+        try{ 
+            await fetch(API_BASE,{method:"POST",body:fd}); 
+            return true; 
+        } catch(e){ 
+            let newId = generateSafeId(Date.now().toString());
+            mistakeList.unshift({
+                id: newId, 
+                text, 
+                image_base64:img||"", 
+                has_image:!!img, 
+                tags:finalTags, 
+                variants:null, 
+                gradeVersion:gv, 
+                unit, 
+                originalId:oid, 
+                submitted_at:new Date().toISOString(), 
+                need_illustration:needIll 
+            }); 
+            updateFilters(); 
+            renderTagFilters(); 
+            applyFilterAndRender(); 
+            initSortable(); 
+            return false; 
+        } 
+    }
     function initSortable(){ let grid=document.getElementById("mistakesContainer"); if(window.sortableInstance) window.sortableInstance.destroy(); window.sortableInstance=new Sortable(grid,{animation:150,handle:'.drag-handle',onEnd:()=>{ let order=[]; grid.querySelectorAll('.mistake-card').forEach(c=>{ let f=mistakeList.find(m=>m.id===c.dataset.id); if(f) order.push(f); }); if(order.length===mistakeList.length) mistakeList=order; }}); }
     function updateFilters(){ let gs=new Set(), us=new Set(); mistakeList.forEach(i=>{ if(i.gradeVersion) gs.add(i.gradeVersion); if(i.unit) us.add(i.unit); }); gradeVersionFilter.innerHTML='<option value="">全年级</option>'; [...gs].sort().forEach(g=>{ let opt=document.createElement('option'); opt.value=g; opt.textContent=g; gradeVersionFilter.appendChild(opt); }); unitFilter.innerHTML='<option value="">全单元</option>'; [...us].sort().forEach(u=>{ let opt=document.createElement('option'); opt.value=u; opt.textContent=u; unitFilter.appendChild(opt); }); }
     function sortMistakes(list){ let sorted=[...list]; if(currentSort==='time_desc') sorted.sort((a,b)=>new Date(b.submitted_at||0)-new Date(a.submitted_at||0)); else if(currentSort==='time_asc') sorted.sort((a,b)=>new Date(a.submitted_at||0)-new Date(b.submitted_at||0)); else if(currentSort==='rate_desc'){ sorted.sort((a,b)=>{ let ra=getAcc(a)?.rate??-1, rb=getAcc(b)?.rate??-1; if(ra===-1&&rb===-1) return 0; if(ra===-1) return 1; if(rb===-1) return -1; return rb-ra; }); } else if(currentSort==='rate_asc'){ sorted.sort((a,b)=>{ let ra=getAcc(a)?.rate??-1, rb=getAcc(b)?.rate??-1; if(ra===-1&&rb===-1) return 0; if(ra===-1) return 1; if(rb===-1) return -1; return ra-rb; }); } return sorted; }
     function applyFilterAndRender(){ let f=[...mistakeList]; if(currentGrade) f=f.filter(i=>i.gradeVersion===currentGrade); if(currentUnit) f=f.filter(i=>i.unit===currentUnit); if(currentKeyword) f=f.filter(i=>i.text.toLowerCase().includes(currentKeyword.toLowerCase())); if(currentTagFilters.length) f=f.filter(i=>i.tags&&currentTagFilters.some(t=>i.tags.includes(t))); f=sortMistakes(f); document.getElementById("totalCountFooter").innerText=`共 ${f.length} 道错题`; renderByView(f); }
     function renderByView(data){ if(!data.length){ container.innerHTML='<div class="empty-state">📭 暂无错题</div>'; return; } let html=''; data.forEach(item=>{ let otherTags=(item.tags||[]).filter(t=>t!==item.gradeVersion&&t!==item.unit); let variantHtml=item.variants?renderVariantInline(item.id,item.variants):''; let acc=getAcc(item); let accHtml=acc&&acc.total>0?`<div class="accuracy-container"><div class="pie-chart-wrapper"><canvas class="pie-canvas" width="40" height="40" data-rate="${acc.rate}" data-total="${acc.total}"></canvas></div><div class="accuracy-text"><span class="accuracy-number">正确率 ${acc.rate}%</span><span class="learning-count">(${acc.correct}/${acc.total})</span></div></div>`:`<div class="accuracy-container"><div class="pie-chart-wrapper"><canvas class="pie-canvas" width="40" height="40" data-rate="0" data-total="0"></canvas></div><div class="accuracy-text">暂无学情数据</div></div>`; let timeDisplay=formatTime(item.submitted_at); html+=`<div class="mistake-card" data-id="${item.id}"><div class="card-header"><div><span class="drag-handle">☰</span><div class="tag-group">${otherTags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div></div><div class="mistake-time" title="导入时间">📅 ${timeDisplay}</div></div>${accHtml}<div class="content-area">${item.has_image?`<div class="image-container"><img class="mistake-img" src="${item.image_base64}" onclick="openImageModal('${item.image_base64}')"></div>`:`<div class="mistake-text">📝 ${escapeHtml(item.text)}</div>`}</div><div class="card-footer"><button class="btn-sm import-original-btn" data-id="${item.id}">📥 导入</button><button class="btn-sm btn-sm-primary variant-trigger" data-id="${item.id}" data-text="${escapeHtml(item.text).replace(/'/g,"\\'")}">✨ 变式</button></div>${variantHtml}</div>`; }); container.innerHTML=html; document.querySelectorAll('.pie-canvas').forEach(c=>{ let r=parseInt(c.getAttribute('data-rate'))||0; drawPie(c,r); }); attachCardEvents(); }
-    function attachCardEvents(){ document.querySelectorAll('.import-original-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation(); importOriginalQuestion(b.dataset.id);})); document.querySelectorAll('.variant-trigger').forEach(b=>{ b.addEventListener('click',e=>{ let id=b.dataset.id, text=b.dataset.text; let cardDiv=document.querySelector(`.mistake-card[data-id="${id}"]`); if(!cardDiv) return; let existingPanel=cardDiv.querySelector('.variant-config-panel'); if(existingPanel){ existingPanel.remove(); return; } let oldVar=cardDiv.querySelector('.variant-inline'); if(oldVar) oldVar.remove(); let footer=cardDiv.querySelector('.card-footer'); if(footer){ footer.insertAdjacentHTML('afterend', renderConfigPanel(id, text)); bindConfigEvents(id, text); } }); }); document.querySelectorAll('.hide-btn').forEach(b=>b.addEventListener('click',e=>{ let id=b.dataset.id,action=b.dataset.action; let idx=mistakeList.findIndex(m=>m.id===id); if(idx!==-1&&mistakeList[idx].variants){ if(action==='hide') mistakeList[idx].variants.visible=false; else mistakeList[idx].variants.visible=true; applyFilterAndRender(); } })); document.querySelectorAll('.regenerate-btn').forEach(b=>b.addEventListener('click',async e=>{ let id=b.dataset.id; let idx=mistakeList.findIndex(m=>m.id===id); if(idx!==-1) mistakeList[idx].variants=null; applyFilterAndRender(); let trigger=document.querySelector(`.variant-trigger[data-id="${id}"]`); if(trigger) trigger.click(); })); document.querySelectorAll('.copy-all-variant').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation(); navigator.clipboard.writeText(b.dataset.fulltext); alert("已复制全部");})); document.querySelectorAll('.generate-img-btn').forEach(b=>b.addEventListener('click',async e=>{ let cardId=b.dataset.card,idx=parseInt(b.dataset.index); let orig=b.textContent; b.textContent="⏳生成..."; b.disabled=true; try{ await generateSingleIllustration(cardId,idx); }catch(err){ alert("生成配图失败"); }finally{ b.textContent=orig; b.disabled=false; } })); document.querySelectorAll('.import-btn').forEach(b=>b.addEventListener('click',e=>{ let cardId=b.dataset.card,idx=parseInt(b.dataset.index); importVariantQuestion(cardId,idx); })); }
+    function attachCardEvents(){ 
+        document.querySelectorAll('.import-original-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation(); importOriginalQuestion(b.dataset.id);})); 
+        document.querySelectorAll('.variant-trigger').forEach(b=>{ 
+            b.addEventListener('click',e=>{ 
+                let id=b.dataset.id, text=b.dataset.text; 
+                let cardDiv=document.querySelector(`.mistake-card[data-id="${id}"]`); 
+                if(!cardDiv) return; 
+                let existingPanel=cardDiv.querySelector('.variant-config-panel'); 
+                if(existingPanel){ existingPanel.remove(); return; } 
+                let oldVar=cardDiv.querySelector('.variant-inline'); 
+                if(oldVar) oldVar.remove(); 
+                let footer=cardDiv.querySelector('.card-footer'); 
+                if(footer){ 
+                    footer.insertAdjacentHTML('afterend', renderConfigPanel(id, text)); 
+                    bindConfigEvents(id, text); 
+                } 
+            }); 
+        }); 
+        document.querySelectorAll('.hide-btn').forEach(b=>b.addEventListener('click',e=>{ let id=b.dataset.id,action=b.dataset.action; let idx=mistakeList.findIndex(m=>m.id===id); if(idx!==-1&&mistakeList[idx].variants){ if(action==='hide') mistakeList[idx].variants.visible=false; else mistakeList[idx].variants.visible=true; applyFilterAndRender(); } })); 
+        document.querySelectorAll('.regenerate-btn').forEach(b=>b.addEventListener('click',async e=>{ let id=b.dataset.id; let idx=mistakeList.findIndex(m=>m.id===id); if(idx!==-1) mistakeList[idx].variants=null; applyFilterAndRender(); let trigger=document.querySelector(`.variant-trigger[data-id="${id}"]`); if(trigger) trigger.click(); })); 
+        document.querySelectorAll('.copy-all-variant').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation(); navigator.clipboard.writeText(b.dataset.fulltext); alert("已复制全部");})); 
+        document.querySelectorAll('.generate-img-btn').forEach(b=>b.addEventListener('click',async e=>{ let cardId=b.dataset.card,idx=parseInt(b.dataset.index); let orig=b.textContent; b.textContent="⏳生成..."; b.disabled=true; try{ await generateSingleIllustration(cardId,idx); }catch(err){ alert("生成配图失败"); }finally{ b.textContent=orig; b.disabled=false; } })); 
+        document.querySelectorAll('.import-btn').forEach(b=>b.addEventListener('click',e=>{ let cardId=b.dataset.card,idx=parseInt(b.dataset.index); importVariantQuestion(cardId,idx); })); 
+    }
     function renderConfigPanel(cardId,originalText){ return `<div class="variant-config-panel" data-id="${cardId}"><div><label>变化方式</label><div id="modes-${cardId}"><label><input type="checkbox" value="情境转换"> 情境转换</label><label><input type="checkbox" value="数据修改"> 数据修改</label><label><input type="checkbox" value="跨学科"> 跨学科</label><label><input type="checkbox" value="提升难度"> 提升难度</label><label><input type="checkbox" value="降低难度"> 降低难度</label><label><input type="checkbox" value="综合变化"> 综合变化</label><label><input type="checkbox" value="随机选择" checked> 随机选择</label></div></div><div><label>题型</label><select id="type-${cardId}"><option>选择题</option><option>填空题</option><option>应用题</option></select></div><div class="config-buttons"><button class="btn-sm cancel-config" data-id="${cardId}">取消</button><button class="btn-sm btn-sm-primary confirm-generate" data-id="${cardId}" data-text="${escapeHtml(originalText).replace(/'/g,"\\'")}">生成</button></div></div>`; }
-    function bindConfigEvents(cardId,originalText){ let confirmBtn=document.querySelector(`.confirm-generate[data-id="${cardId}"]`); let cancelBtn=document.querySelector(`.cancel-config[data-id="${cardId}"]`); let chkGroup=document.getElementById(`modes-${cardId}`); if(chkGroup){ let randomChk=chkGroup.querySelector('input[value="随机选择"]'); let others=chkGroup.querySelectorAll('input[value]:not([value="随机选择"])'); others.forEach(cb=>cb.addEventListener('change',()=>{ if(cb.checked&&randomChk) randomChk.checked=false; })); if(randomChk) randomChk.addEventListener('change',()=>{ if(randomChk.checked) others.forEach(cb=>{if(cb.checked) cb.checked=false;}); }); } if(confirmBtn) confirmBtn.addEventListener('click',async ()=>{ let selected=Array.from(document.querySelectorAll(`#modes-${cardId} input:checked`)).map(cb=>cb.value); if(!selected.length){ alert("请选择变化方式"); return; } let qType=document.getElementById(`type-${cardId}`).value; let panel=document.querySelector(`.variant-config-panel[data-id="${cardId}"]`); if(panel) panel.remove(); let cardDiv=document.querySelector(`.mistake-card[data-id="${cardId}"]`); if(!cardDiv) return; let loadingDiv=document.createElement('div'); loadingDiv.className='variant-inline'; loadingDiv.innerHTML='<div class="variant-header-inline"><span>🤖 生成变式...</span><div class="spinner"></div></div>'; cardDiv.appendChild(loadingDiv); try{ await generateVariantsForCard(cardId,originalText,selected,qType); loadingDiv.remove(); applyFilterAndRender(); }catch(err){ loadingDiv.innerHTML=`<div class="variant-header-inline"><span style="color:red;">❌ ${err.message}</span></div>`; setTimeout(()=>loadingDiv.remove(),2000); } }); if(cancelBtn) cancelBtn.addEventListener('click',()=>{ let panel=document.querySelector(`.variant-config-panel[data-id="${cardId}"]`); if(panel) panel.remove(); }); }
+    function bindConfigEvents(cardId,originalText){ 
+        let panel = document.querySelector(`.variant-config-panel[data-id="${cardId}"]`);
+        if(!panel) return;
+        let confirmBtn = panel.querySelector('.confirm-generate');
+        let cancelBtn = panel.querySelector('.cancel-config');
+        let chkGroup = document.getElementById(`modes-${cardId}`);
+        if(chkGroup){ 
+            let randomChk=chkGroup.querySelector('input[value="随机选择"]'); 
+            let others=chkGroup.querySelectorAll('input[value]:not([value="随机选择"])'); 
+            others.forEach(cb=>cb.addEventListener('change',()=>{ if(cb.checked&&randomChk) randomChk.checked=false; })); 
+            if(randomChk) randomChk.addEventListener('change',()=>{ if(randomChk.checked) others.forEach(cb=>{if(cb.checked) cb.checked=false;}); }); 
+        } 
+        if(confirmBtn){ 
+            confirmBtn.addEventListener('click',async ()=>{ 
+                let selected=Array.from(panel.querySelectorAll(`input:checked`)).map(cb=>cb.value); 
+                if(!selected.length){ alert("请选择变化方式"); return; } 
+                let qType=panel.querySelector(`select`).value; 
+                panel.remove(); 
+                let cardDiv=document.querySelector(`.mistake-card[data-id="${cardId}"]`); 
+                if(!cardDiv) return; 
+                let loadingDiv=document.createElement('div'); 
+                loadingDiv.className='variant-inline'; 
+                loadingDiv.innerHTML='<div class="variant-header-inline"><span>🤖 生成变式...</span><div class="spinner"></div></div>'; 
+                cardDiv.appendChild(loadingDiv); 
+                try{ 
+                    await generateVariantsForCard(cardId,originalText,selected,qType); 
+                    loadingDiv.remove(); 
+                    applyFilterAndRender(); 
+                }catch(err){ 
+                    loadingDiv.innerHTML=`<div class="variant-header-inline"><span style="color:red;">❌ ${err.message}</span></div>`; 
+                    setTimeout(()=>loadingDiv.remove(),2000); 
+                } 
+            }); 
+        } 
+        if(cancelBtn){ 
+            cancelBtn.addEventListener('click',()=>{ 
+                let panelToRemove = document.querySelector(`.variant-config-panel[data-id="${cardId}"]`);
+                if(panelToRemove) panelToRemove.remove(); 
+            }); 
+        } 
+    }
     const VARIANT_MODES_LIST=["情境转换","数据修改","跨学科","提升难度","降低难度","综合变化"];
     async function generateVariantsForCard(cardId,originalText,modes,qType){ let card=mistakeList.find(m=>m.id===cardId); if(!card) throw new Error("卡片不存在"); let effectiveText=originalText||card.text; let gradeNumber=1,gradeText="一年级"; if(card.gradeVersion){ let m=card.gradeVersion.match(/([一二三四五六])年级/); if(m){ let map={一:"1",二:"2",三:"3",四:"4",五:"5",六:"6"}; gradeNumber=parseInt(map[m[1]]||"1"); gradeText=`${map[m[1]]}年级`==="1年级"?"一年级":`${map[m[1]]}年级`; } } else for(let tag of card.tags){ let m=tag.match(/[一二三四五六]年级/); if(m){ let map={一:"1",二:"2",三:"3",四:"4",五:"5",六:"6"}; gradeNumber=parseInt(map[m[0][0]]||"1"); gradeText=`${map[m[0][0]]}年级`==="1年级"?"一年级":`${map[m[0][0]]}年级`; break; } }
         let complexityHint=""; if(gradeNumber<=1) complexityHint="每道变式题总字数（不含选项）严格控制在80字以内，使用最简单的生活化语言，情境贴近一年级儿童（如分水果、数小棒、排队等）。避免复杂句式和抽象概念。"; else if(gradeNumber===2) complexityHint="每道变式题总字数（不含选项）控制在120字以内，情境简单具体，语言生动，符合二年级学生认知。"; else if(gradeNumber<=4) complexityHint="每道变式题总字数（不含选项）控制在200字以内，情境适当丰富，可涉及简单的生活应用或图形。"; else complexityHint="每道变式题总字数（不含选项）不超过300字，情境可略复杂，但依然要保持小学生可理解的水平。";
@@ -371,8 +537,78 @@
     // ================= 标签筛选 =================
     function renderTagFilters(){ if(!tagFilterDiv) return; let allTags=new Set(); mistakeList.forEach(i=>{(i.tags||[]).forEach(t=>{if(t!==i.gradeVersion&&t!==i.unit) allTags.add(t);});}); let arr=Array.from(allTags).sort(); if(!arr.length){ tagFilterDiv.innerHTML='<span style="font-size:.7rem;color:#8aa0b5;">暂无自定义标签</span>'; return; } let html=''; arr.forEach(tag=>{ let active=currentTagFilters.includes(tag); html+=`<button class="tag-filter-btn ${active?'active':''}" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}${active?'<span class="check-mark">✓</span>':''}</button>`; }); tagFilterDiv.innerHTML=html; document.querySelectorAll('.tag-filter-btn').forEach(b=>{ b.addEventListener('click',()=>{ let tag=b.getAttribute('data-tag'); if(currentTagFilters.includes(tag)) currentTagFilters=currentTagFilters.filter(t=>t!==tag); else currentTagFilters.push(tag); renderTagFilters(); applyFilterAndRender(); }); }); }
     
-    // ================= 自定义标签输入 =================
-    function renderTags(){ if(!tagContainer) return; tagContainer.innerHTML=''; currentTempTags.forEach((tag,idx)=>{ let div=document.createElement('div'); div.className='tag-item'; div.innerHTML=`${escapeHtml(tag)} <button data-idx="${idx}" class="remove-tag">✕</button>`; tagContainer.appendChild(div); }); let input=document.createElement('input'); input.type='text'; input.className='tag-input'; input.placeholder='输入标签，按回车...'; input.addEventListener('keypress',(e)=>{ if(e.key==='Enter'&&e.target.value.trim()){ let val=e.target.value.trim(); if(!currentTempTags.includes(val)){ currentTempTags.push(val); renderTags(); } e.target.value=''; } }); tagContainer.appendChild(input); document.querySelectorAll('.remove-tag').forEach(btn=>btn.addEventListener('click',(e)=>{ let idx=parseInt(btn.dataset.idx); if(!isNaN(idx)){ currentTempTags.splice(idx,1); renderTags(); } })); }
+    // ================= 自定义标签输入（含已有标签快速选择） =================
+    function renderExistingTags() {
+        const existingTagsSet = new Set();
+        mistakeList.forEach(item => {
+            (item.tags || []).forEach(tag => {
+                if (tag !== item.gradeVersion && tag !== item.unit && tag && tag.trim()) {
+                    existingTagsSet.add(tag);
+                }
+            });
+        });
+        const tagArray = Array.from(existingTagsSet).sort();
+        const existingTagsDiv = document.getElementById("existingTagsArea");
+        const tagsListDiv = document.getElementById("existingTagsList");
+        if (tagArray.length === 0) {
+            if (existingTagsDiv) existingTagsDiv.style.display = "none";
+            return;
+        }
+        if (existingTagsDiv) existingTagsDiv.style.display = "block";
+        if (tagsListDiv) {
+            tagsListDiv.innerHTML = "";
+            tagArray.forEach(tag => {
+                const btn = document.createElement("button");
+                btn.className = "existing-tag-btn";
+                btn.textContent = tag;
+                btn.onclick = () => {
+                    if (!currentTempTags.includes(tag)) {
+                        currentTempTags.push(tag);
+                        renderTags();
+                        renderExistingTags(); 
+                    } else {
+                        alert("标签已存在");
+                    }
+                };
+                tagsListDiv.appendChild(btn);
+            });
+        }
+    }
+    
+    function renderTags(){ 
+        if(!tagContainer) return; 
+        tagContainer.innerHTML=''; 
+        currentTempTags.forEach((tag,idx)=>{ 
+            let div=document.createElement('div'); 
+            div.className='tag-item'; 
+            div.innerHTML=`${escapeHtml(tag)} <button data-idx="${idx}" class="remove-tag">✕</button>`; 
+            tagContainer.appendChild(div); 
+        }); 
+        let input=document.createElement('input'); 
+        input.type='text'; 
+        input.className='tag-input'; 
+        input.placeholder='输入标签，按回车...'; 
+        input.addEventListener('keypress',(e)=>{ 
+            if(e.key==='Enter'&&e.target.value.trim()){ 
+                let val=e.target.value.trim(); 
+                if(!currentTempTags.includes(val)){ 
+                    currentTempTags.push(val); 
+                    renderTags(); 
+                    renderExistingTags(); 
+                } 
+                e.target.value=''; 
+            } 
+        }); 
+        tagContainer.appendChild(input); 
+        document.querySelectorAll('.remove-tag').forEach(btn=>btn.addEventListener('click',(e)=>{ 
+            let idx=parseInt(btn.dataset.idx); 
+            if(!isNaN(idx)){ 
+                currentTempTags.splice(idx,1); 
+                renderTags(); 
+                renderExistingTags(); 
+            } 
+        })); 
+    }
     
     // ================= 教材目录相关（年级+单元联动） =================
     async function parseCurriculum(file){ let ext=file.name.split('.').pop().toLowerCase(); let raw=""; if(ext==='docx'){ let buf=await file.arrayBuffer(); let res=await mammoth.extractRawText({arrayBuffer:buf}); raw=res.value; } else if(ext==='pdf'){ let buf=await file.arrayBuffer(); let pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise; for(let i=1;i<=pdf.numPages;i++){ let page=await pdf.getPage(i); let txt=await page.getTextContent(); raw+=txt.items.map(t=>t.str).join(' ')+"\n"; } } else throw new Error("不支持"); let lines=raw.split(/\r?\n/); let fw={}; let cur=null; let gradeRe=/([一二三四五六]年级[上下]册)/; let unitPatterns=[/第?[一二三四五六七八九十]+单元/,/^[一二三四五六七八九十]+[、.．]/,/综合实践/,/数学好玩/,/整理与复习/,/总复习/,/我上学啦/,/生活中的数/]; function isUnitLine(l){ for(let p of unitPatterns) if(p.test(l)) return true; return false; } for(let line of lines){ line=line.trim(); if(!line) continue; if(gradeRe.test(line)){ cur=line.match(gradeRe)[1]; if(!fw[cur]) fw[cur]=[]; } else if(cur&&isUnitLine(line)){ let unitName=line.replace(/^第?[一二三四五六七八九十]+单元\s*/,'').replace(/^[一二三四五六七八九十]+[、.．]\s*/,''); if(!unitName) unitName=line; if(!fw[cur].includes(unitName)) fw[cur].push(unitName); } } if(!Object.keys(fw).length) throw new Error("未识别到年级单元结构"); return fw; }
@@ -388,7 +624,6 @@
         } 
         bookGradeSelect.innerHTML='<option value="">请选择年级</option>'; 
         grades.forEach(g=>{let opt=document.createElement('option'); opt.value=g; opt.textContent=g; bookGradeSelect.appendChild(opt);}); 
-        // 默认选中第一个年级（如果有）
         if(grades.length) {
             bookGradeSelect.value = grades[0];
             updateUnitByGrade(grades[0]);
@@ -422,7 +657,20 @@
     sortSelect.onchange=e=>{currentSort=e.target.value; applyFilterAndRender();};
     searchBtn.onclick=()=>{searchInput.classList.toggle('show'); if(searchInput.classList.contains('show')) searchInput.focus(); else{currentKeyword=""; applyFilterAndRender();}};
     searchInput.addEventListener('keyup',()=>{currentKeyword=searchInput.value; applyFilterAndRender();});
-    function resetUploadModal(){ currentImageBase64=""; previewImg.style.display="none"; previewImg.src=""; cropSection.style.display="none"; if(cropper) cropper.destroy(); mistakeDesc.value=""; ocrStatus.innerText=""; currentTempTags=[]; renderTags(); if(needIllustrationCheckbox) needIllustrationCheckbox.checked=false; if(compressStatusDiv) compressStatusDiv.innerText=""; }
+    function resetUploadModal(){ 
+        currentImageBase64=""; 
+        previewImg.style.display="none"; 
+        previewImg.src=""; 
+        cropSection.style.display="none"; 
+        if(cropper) cropper.destroy(); 
+        mistakeDesc.value=""; 
+        ocrStatus.innerText=""; 
+        currentTempTags=[]; 
+        renderTags(); 
+        renderExistingTags();
+        if(needIllustrationCheckbox) needIllustrationCheckbox.checked=false; 
+        if(compressStatusDiv) compressStatusDiv.innerText=""; 
+    }
     uploadArea.onclick=()=>fileInput.click();
     fileInput.onchange=e=>{ if(e.target.files[0]){ let reader=new FileReader(); reader.onload=ev=>{ currentImageBase64=ev.target.result; showCropModal(currentImageBase64); }; reader.readAsDataURL(e.target.files[0]); } };
     window.addEventListener("paste",e=>{ if(uploadModal.style.display!=="flex") return; let items=e.clipboardData.items; for(let i of items) if(i.type.indexOf("image")!==-1){ let blob=i.getAsFile(); let reader=new FileReader(); reader.onload=ev=>{ currentImageBase64=ev.target.result; showCropModal(currentImageBase64); }; reader.readAsDataURL(blob); e.preventDefault(); break; } });
@@ -434,6 +682,7 @@
     addBtn.onclick=()=>{ 
         resetUploadModal(); 
         uploadModal.style.display="flex"; 
+        renderExistingTags(); 
         if(!Object.keys(curriculumFramework).length) alert("请先上传教材目录"); 
     };
     apiKeyBtn.onclick=()=>{ apiKeyInput.value=doubaoApiKey; apiEndpointInput.value=doubaoEndpoint; modelNameInput.value=doubaoModel; imageGenModelInput.value=doubaoImgModel; apiKeyModal.style.display="flex"; };
