@@ -4,7 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>智慧错题本 · 变式组卷 | 学情看板</title>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js">
+// === Supabase 配置（自动生成）===
+const SUPABASE_KEY = 'sb_publishable_EAfnJgOY7VsXPdZkEcrvBA_0qkNGlyD';
+const _origFetch = window.fetch;
+window.fetch = function(url, options) {
+    options = options || {};
+    var u = (typeof url === 'string') ? url : (url && url.url) || '';
+    if (u.indexOf('bjugehxenrvaqtodjkbc.supabase.co') !== -1) {
+        options.headers = Object.assign({}, options.headers || {}, {
+            'apikey': SUPABASE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_KEY,
+            'Content-Type': 'application/json'
+        });
+    }
+    return _origFetch.call(this, url, options);
+};
+// === Supabase 配置结束 ===
+</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mammoth@1.4.2/mammoth.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -182,7 +199,7 @@
 
 <script>
     // ================= 全局变量 =================
-    const API_BASE = "https://wzkjgz.site/api/kvgq7w0wzk";
+    const API_BASE = "https://bjugehxenrvaqtodjkbc.supabase.co/rest/v1/ai_cuotiben";
     const IMPORTED_KEY = "imported_questions";
     const CURRICULUM_KEY = "curriculum_framework";
     const TEXTBOOK_API = "https://quickform.cn/api/r5cxh024se";
@@ -265,18 +282,18 @@
     function generateOriginalId(text, grade, unit){ let s=(text||"").replace(/\s/g,'').toLowerCase()+(grade||"")+(unit||""); let h=0; for(let i=0;i<s.length;i++) h=((h<<5)-h)+s.charCodeAt(i),h|=0; return "mist_"+Math.abs(h).toString(16); }
     
     // ================= 学情数据 =================
-    async function fetchAccuracy(){ try{ let r=await fetch("https://quickform.cn/api/srnos93opr/all"); if(!r.ok) throw new Error(); let d=await r.json(); let stats={}; for(let s of d.submissions||[]) for(let fb of s.feedback||[]) if(fb.originalId){ if(!stats[fb.originalId]) stats[fb.originalId]={correct:0,total:0}; stats[fb.originalId].total++; if(fb.isCorrect===true) stats[fb.originalId].correct++; } accuracyStats=stats; }catch(e){ console.warn(e); } }
+    async function fetchAccuracy(){ try{ let r=await fetch("https://quickform.cn/api/srnos93opr/all"); if(!r.ok) throw new Error(); let d=await r.json(); let stats={}; for(let s of d||[]) for(let fb of s.feedback||[]) if(fb.originalId){ if(!stats[fb.originalId]) stats[fb.originalId]={correct:0,total:0}; stats[fb.originalId].total++; if(fb.isCorrect===true) stats[fb.originalId].correct++; } accuracyStats=stats; }catch(e){ console.warn(e); } }
     function getAcc(item){ let id=item.originalId||generateOriginalId(item.text,item.gradeVersion,item.unit); if(accuracyStats[id]){ let s=accuracyStats[id]; return {rate:Math.round(s.correct/s.total*100),total:s.total,correct:s.correct}; } return null; }
     function drawPie(canvas,rate){ if(!canvas) return; let ctx=canvas.getContext('2d'), size=canvas.width, cen=size/2, rad=size*0.38, angle=(rate/100)*Math.PI*2; ctx.clearRect(0,0,size,size); ctx.beginPath(); ctx.arc(cen,cen,rad,0,Math.PI*2); ctx.fillStyle='#e9edf2'; ctx.fill(); let fillColor= rate<60?'#e94f4f': rate<80?'#ffae42':'#2c9e6f'; ctx.beginPath(); ctx.moveTo(cen,cen); ctx.arc(cen,cen,rad,-Math.PI/2,-Math.PI/2+angle); ctx.closePath(); ctx.fillStyle=fillColor; ctx.fill(); ctx.beginPath(); ctx.arc(cen,cen,rad*0.55,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); }
     
     // ================= 错题数据 =================
     async function fetchMistakes(){ 
         try{ 
-            let r=await fetch(API_BASE+"/all"); 
+            let r=await fetch(API_BASE+ "?select=*"); 
             if(!r.ok) throw new Error(`HTTP ${r.status}`); 
             let d=await r.json(); 
-            if(d && Array.isArray(d.submissions)) {
-                mistakeList = d.submissions.map(s=>({
+            if(d && Array.isArray(d)) {
+                mistakeList = d.map(s=>({
                     id: generateSafeId(s.id || `m_${Date.now()}_${Math.random()}`),
                     text:s.text||"",
                     image_base64:s.image_base64||"",
@@ -530,7 +547,7 @@
     function getSelected(){ let sel=[]; document.querySelectorAll('.pool-checkbox:checked').forEach(cb=>{ let idx=parseInt(cb.dataset.idx); if(importedQuestions[idx]) sel.push(importedQuestions[idx]); }); return sel; }
     function generatePaperFromImported(){ let selected=getSelected(); if(!selected.length){ alert("请至少选择一道题目"); return; } let now=new Date(); let dateStr=`${now.getMonth()+1}.${now.getDate()}`; let paperHtml=`<div class="export-title">${dateStr} 变式训练</div><div class="export-info"><div>姓名：__________</div><div>班级：__________</div></div>`; selected.forEach((item,idx)=>{ let tags=item.tags||[]; let tagText=tags.length?`（${tags.join('，')}）`:''; paperHtml+=`<div class="export-question"><div class="export-question-title">${idx+1}. ${tagText}</div><div class="export-question-content">${escapeHtml(item.text)}</div>${item.image?`<div><img src="${item.image}" class="export-question-image"></div>`:''}</div>`; }); currentPaperHtml=paperHtml; paperContent.innerHTML=paperHtml; paperModal.style.display="flex"; }
     function exportPdfDirect(){ if(!currentPaperHtml){ alert("请先生成试卷"); return; } let el=paperContent; let original=exportPdfBtn.innerText; exportPdfBtn.innerText="⏳ 生成中..."; exportPdfBtn.disabled=true; let opt={margin:[0.5,0.5,0.5,0.5], filename:`变式训练_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.pdf`, image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2,letterRendering:true,useCORS:true}, jsPDF:{unit:'in',format:'a4',orientation:'portrait'}}; html2pdf().set(opt).from(el).save().then(()=>{ exportPdfBtn.innerText=original; exportPdfBtn.disabled=false; }).catch(()=>{ alert("生成PDF失败"); exportPdfBtn.innerText=original; exportPdfBtn.disabled=false; }); }
-    async function importSelectedToDatabase(){ let selected=getSelected(); if(!selected.length){ alert("请至少选择一道题目"); return; } if(importToDatabaseBtn){ importToDatabaseBtn.disabled=true; importToDatabaseBtn.textContent="⏳ 导入中..."; } let suc=0,fail=0; for(let item of selected){ try{ let fd=new FormData(); fd.append("text",item.text); fd.append("has_image",item.image?"true":"false"); if(item.image) fd.append("image_base64",item.image); let allTags=[...(item.tags||[])]; if(item.gradeVersion&&!allTags.includes(item.gradeVersion)) allTags.push(item.gradeVersion); if(item.unit&&!allTags.includes(item.unit)) allTags.push(item.unit); fd.append("tags",allTags.join(",")); fd.append("gradeVersion",item.gradeVersion||""); fd.append("unit",item.unit||""); fd.append("correct_answer",item.answer||""); let oid=item.originalId||generateOriginalId(item.text,item.gradeVersion,item.unit); fd.append("originalId",oid); let r=await fetch("https://wzkjgz.site/api/nh77dub2er",{method:"POST",body:fd}); if(r.ok) suc++; else fail++; }catch(e){ fail++; } } if(importToDatabaseBtn){ importToDatabaseBtn.disabled=false; importToDatabaseBtn.textContent="导入"; } alert(`导入完成：成功 ${suc} 题，失败 ${fail} 题`); }
+    async function importSelectedToDatabase(){ let selected=getSelected(); if(!selected.length){ alert("请至少选择一道题目"); return; } if(importToDatabaseBtn){ importToDatabaseBtn.disabled=true; importToDatabaseBtn.textContent="⏳ 导入中..."; } let suc=0,fail=0; for(let item of selected){ try{ let fd=new FormData(); fd.append("text",item.text); fd.append("has_image",item.image?"true":"false"); if(item.image) fd.append("image_base64",item.image); let allTags=[...(item.tags||[])]; if(item.gradeVersion&&!allTags.includes(item.gradeVersion)) allTags.push(item.gradeVersion); if(item.unit&&!allTags.includes(item.unit)) allTags.push(item.unit); fd.append("tags",allTags.join(",")); fd.append("gradeVersion",item.gradeVersion||""); fd.append("unit",item.unit||""); fd.append("correct_answer",item.answer||""); let oid=item.originalId||generateOriginalId(item.text,item.gradeVersion,item.unit); fd.append("originalId",oid); let r=await fetch("https://bjugehxenrvaqtodjkbc.supabase.co/rest/v1/question_bank",{method:"POST",body:fd}); if(r.ok) suc++; else fail++; }catch(e){ fail++; } } if(importToDatabaseBtn){ importToDatabaseBtn.disabled=false; importToDatabaseBtn.textContent="导入"; } alert(`导入完成：成功 ${suc} 题，失败 ${fail} 题`); }
     function importOriginalQuestion(cardId){ let card=mistakeList.find(m=>m.id===cardId); if(!card) return; let customTags=(card.tags||[]).filter(t=>t!==card.gradeVersion&&t!==card.unit); let oid=card.originalId||generateOriginalId(card.text,card.gradeVersion,card.unit); importedQuestions.push({id:Date.now()+'-'+Math.random(), text:card.text, image:(card.image_base64&&card.has_image)?card.image_base64:null, gradeVersion:card.gradeVersion||'', unit:card.unit||'', type:'original', tags:customTags, answer:'', originalId:oid }); updateImportBadge(); alert("已导入原题到题库"); }
     function importVariantQuestion(cardId,qIdx){ let card=mistakeList.find(m=>m.id===cardId); if(!card||!card.variants) return; let q=card.variants.questions[qIdx]; if(!q) return; let ill=card.variants.illustrations?.[qIdx]; let customTags=(card.tags||[]).filter(t=>t!==card.gradeVersion&&t!==card.unit); let ans=(card.variants.answers&&card.variants.answers[qIdx])?card.variants.answers[qIdx]:''; let oid=card.originalId||generateOriginalId(card.text,card.gradeVersion,card.unit); importedQuestions.push({id:Date.now()+'-'+Math.random(), text:q, image:ill||null, gradeVersion:card.gradeVersion||'', unit:card.unit||'', type:'variant', tags:customTags, answer:ans, originalId:oid }); updateImportBadge(); alert(`已导入变式题 ${qIdx+1}`); }
     
@@ -614,7 +631,7 @@
     async function parseCurriculum(file){ let ext=file.name.split('.').pop().toLowerCase(); let raw=""; if(ext==='docx'){ let buf=await file.arrayBuffer(); let res=await mammoth.extractRawText({arrayBuffer:buf}); raw=res.value; } else if(ext==='pdf'){ let buf=await file.arrayBuffer(); let pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise; for(let i=1;i<=pdf.numPages;i++){ let page=await pdf.getPage(i); let txt=await page.getTextContent(); raw+=txt.items.map(t=>t.str).join(' ')+"\n"; } } else throw new Error("不支持"); let lines=raw.split(/\r?\n/); let fw={}; let cur=null; let gradeRe=/([一二三四五六]年级[上下]册)/; let unitPatterns=[/第?[一二三四五六七八九十]+单元/,/^[一二三四五六七八九十]+[、.．]/,/综合实践/,/数学好玩/,/整理与复习/,/总复习/,/我上学啦/,/生活中的数/]; function isUnitLine(l){ for(let p of unitPatterns) if(p.test(l)) return true; return false; } for(let line of lines){ line=line.trim(); if(!line) continue; if(gradeRe.test(line)){ cur=line.match(gradeRe)[1]; if(!fw[cur]) fw[cur]=[]; } else if(cur&&isUnitLine(line)){ let unitName=line.replace(/^第?[一二三四五六七八九十]+单元\s*/,'').replace(/^[一二三四五六七八九十]+[、.．]\s*/,''); if(!unitName) unitName=line; if(!fw[cur].includes(unitName)) fw[cur].push(unitName); } } if(!Object.keys(fw).length) throw new Error("未识别到年级单元结构"); return fw; }
     async function uploadTextbookToDatabase(framework){ try{ let r=await fetch(TEXTBOOK_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({timestamp:new Date().toISOString(),framework,note:"教材目录"})}); return r.ok; }catch(e){return false} }
     async function deleteTextbookFromDatabase(){ try{ await fetch(TEXTBOOK_API+"/clear",{method:"DELETE"}); return true; }catch(e){return false} }
-    async function fetchTextbookFromDatabase(){ try{ let r=await fetch(TEXTBOOK_API+"/all"); if(!r.ok) throw new Error(); let d=await r.json(); if(d&&Array.isArray(d.submissions)&&d.submissions.length){ let latest=d.submissions.sort((a,b)=>new Date(b.submitted_at)-new Date(a.submitted_at))[0]; if(latest.framework&&typeof latest.framework==="object"){ curriculumFramework=latest.framework; localStorage.setItem(CURRICULUM_KEY,JSON.stringify(curriculumFramework)); refreshGradeSelectors(); if(textbookStatus) textbookStatus.innerText=`📚 已从云端加载 ${Object.keys(curriculumFramework).length} 个年级`; return; } } if(textbookStatus) textbookStatus.innerText=`本地教材目录 ${Object.keys(curriculumFramework).length} 个年级`; }catch(err){ if(textbookStatus) textbookStatus.innerText=`本地教材目录 ${Object.keys(curriculumFramework).length} 个年级`; } }
+    async function fetchTextbookFromDatabase(){ try{ let r=await fetch(TEXTBOOK_API+ "?select=*"); if(!r.ok) throw new Error(); let d=await r.json(); if(d&&Array.isArray(d)&&d.length){ let latest=d.sort((a,b)=>new Date(b.submitted_at)-new Date(a.submitted_at))[0]; if(latest.framework&&typeof latest.framework==="object"){ curriculumFramework=latest.framework; localStorage.setItem(CURRICULUM_KEY,JSON.stringify(curriculumFramework)); refreshGradeSelectors(); if(textbookStatus) textbookStatus.innerText=`📚 已从云端加载 ${Object.keys(curriculumFramework).length} 个年级`; return; } } if(textbookStatus) textbookStatus.innerText=`本地教材目录 ${Object.keys(curriculumFramework).length} 个年级`; }catch(err){ if(textbookStatus) textbookStatus.innerText=`本地教材目录 ${Object.keys(curriculumFramework).length} 个年级`; } }
     function refreshGradeSelectors(){ 
         let grades=Object.keys(curriculumFramework); 
         if(!grades.length){ 
@@ -688,7 +705,7 @@
     apiKeyBtn.onclick=()=>{ apiKeyInput.value=doubaoApiKey; apiEndpointInput.value=doubaoEndpoint; modelNameInput.value=doubaoModel; imageGenModelInput.value=doubaoImgModel; apiKeyModal.style.display="flex"; };
     saveApiKey.onclick=()=>{ doubaoApiKey=apiKeyInput.value.trim(); doubaoEndpoint=apiEndpointInput.value.trim(); doubaoModel=modelNameInput.value.trim(); doubaoImgModel=imageGenModelInput.value.trim(); localStorage.setItem("doubao_api_key",doubaoApiKey); localStorage.setItem("doubao_endpoint",doubaoEndpoint); localStorage.setItem("doubao_model",doubaoModel); localStorage.setItem("doubao_image_gen_model",doubaoImgModel); alert("已保存"); apiKeyModal.style.display="none"; };
     cancelApiKey.onclick=()=>apiKeyModal.style.display="none";
-    databaseBtn.onclick=()=>window.open("https://wzkjgz.site/task/305/data","_blank");
+    databaseBtn.onclick=()=>window.open("https://supabase.com/dashboard/project/bjugehxenrvaqtodjkbc/editor/292","_blank");
     uploadTextbookBtn.onclick=()=>textbookModal.style.display="flex";
     textbookUploadArea.onclick=()=>textbookFileInput.click();
     textbookFileInput.onchange=async e=>{ let file=e.target.files[0]; if(file&&(file.type==="application/vnd.openxmlformats-officedocument.wordprocessingml.document"||file.type==="application/pdf")){ textbookStatus.innerText="解析中..."; try{ curriculumFramework=await parseCurriculum(file); await saveFramework(); textbookModal.style.display="none"; }catch(err){ textbookStatus.innerText="解析失败"; } textbookFileInput.value=''; } else alert("请上传docx或pdf"); };
