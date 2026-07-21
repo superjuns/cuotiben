@@ -203,7 +203,7 @@ window.fetch = function(url, options) {
     const API_BASE = "https://bjugehxenrvaqtodjkbc.supabase.co/rest/v1/ai_cuotiben";
     const IMPORTED_KEY = "imported_questions";
     const CURRICULUM_KEY = "curriculum_framework";
-    const TEXTBOOK_API = "https://quickform.cn/api/r5cxh024se";
+    const TEXTBOOK_API = "https://bjugehxenrvaqtodjkbc.supabase.co/rest/v1/textbook";
     let mistakeList = [], currentKeyword = "", currentGrade = "", currentUnit = "", currentTagFilters = [], currentSort = "time_desc";
     let importedQuestions = [], curriculumFramework = JSON.parse(localStorage.getItem(CURRICULUM_KEY) || "{}");
     let doubaoApiKey = localStorage.getItem("doubao_api_key") || "ark-ff1505b4-a605-4fc0-9dca-3e9c0c1d690c-dbc4e";
@@ -283,7 +283,7 @@ window.fetch = function(url, options) {
     function generateOriginalId(text, grade, unit){ let s=(text||"").replace(/\s/g,'').toLowerCase()+(grade||"")+(unit||""); let h=0; for(let i=0;i<s.length;i++) h=((h<<5)-h)+s.charCodeAt(i),h|=0; return "mist_"+Math.abs(h).toString(16); }
     
     // ================= 学情数据 =================
-    async function fetchAccuracy(){ try{ let r=await fetch("https://quickform.cn/api/srnos93opr/all"); if(!r.ok) throw new Error(); let d=await r.json(); let stats={}; for(let s of d||[]) for(let fb of s.feedback||[]) if(fb.originalId){ if(!stats[fb.originalId]) stats[fb.originalId]={correct:0,total:0}; stats[fb.originalId].total++; if(fb.isCorrect===true) stats[fb.originalId].correct++; } accuracyStats=stats; }catch(e){ console.warn(e); } }
+    async function fetchAccuracy(){ try{ let r=await fetch("https://bjugehxenrvaqtodjkbc.supabase.co/rest/v1/feedback?select=*"); if(!r.ok) throw new Error(); let d=await r.json(); let stats={}; for(let s of d||[]) for(let fb of s.feedback||[]) if(fb.originalId){ if(!stats[fb.originalId]) stats[fb.originalId]={correct:0,total:0}; stats[fb.originalId].total++; if(fb.isCorrect===true) stats[fb.originalId].correct++; } accuracyStats=stats; }catch(e){ console.warn(e); } }
     function getAcc(item){ let id=item.originalId||generateOriginalId(item.text,item.gradeVersion,item.unit); if(accuracyStats[id]){ let s=accuracyStats[id]; return {rate:Math.round(s.correct/s.total*100),total:s.total,correct:s.correct}; } return null; }
     function drawPie(canvas,rate){ if(!canvas) return; let ctx=canvas.getContext('2d'), size=canvas.width, cen=size/2, rad=size*0.38, angle=(rate/100)*Math.PI*2; ctx.clearRect(0,0,size,size); ctx.beginPath(); ctx.arc(cen,cen,rad,0,Math.PI*2); ctx.fillStyle='#e9edf2'; ctx.fill(); let fillColor= rate<60?'#e94f4f': rate<80?'#ffae42':'#2c9e6f'; ctx.beginPath(); ctx.moveTo(cen,cen); ctx.arc(cen,cen,rad,-Math.PI/2,-Math.PI/2+angle); ctx.closePath(); ctx.fillStyle=fillColor; ctx.fill(); ctx.beginPath(); ctx.arc(cen,cen,rad*0.55,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); }
     
@@ -330,14 +330,10 @@ window.fetch = function(url, options) {
         let fd=new FormData(); 
         fd.append("text",text); 
         fd.append("has_image",img?"true":"false"); 
-        if(img) fd.append("image_base64",img); 
-        fd.append("tags",finalTags.join(",")); 
-        fd.append("gradeVersion",gv); 
-        fd.append("unit",unit); 
-        fd.append("originalId",oid); 
-        fd.append("need_illustration",needIll?"true":"false"); 
+        let payload = {tags:finalTags.join(","),gradeVersion:gv,unit:unit,originalId:oid,need_illustration:needIll?"true":"false"};
+        if(img) payload.image_base64 = img;
         try{ 
-            await fetch(API_BASE,{method:"POST",body:fd}); 
+            await fetch(API_BASE,{method:"POST",body:JSON.stringify(payload)}); 
             return true; 
         } catch(e){ 
             let newId = generateSafeId(Date.now().toString());
@@ -719,7 +715,7 @@ window.fetch = function(url, options) {
     exportPdfBtn.onclick=exportPdfDirect;
     closePaperBtn.onclick=()=>paperModal.style.display="none";
     if(importToDatabaseBtn) importToDatabaseBtn.addEventListener("click", importSelectedToDatabase);
-    if(viewDatabaseBtn) viewDatabaseBtn.addEventListener("click",()=>window.open("https://quickform.cn/task/42707/data","_blank"));
+    if(viewDatabaseBtn) viewDatabaseBtn.addEventListener("click",()=>window.open("https://supabase.com/dashboard/project/bjugehxenrvaqtodjkbc/editor","_blank"));
     async function fetchMistakesAndStats(){ await fetchMistakes(); await fetchAccuracy(); }
     refreshDataBtn.onclick=()=>{ fetchMistakesAndStats(); };
     
