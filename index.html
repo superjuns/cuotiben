@@ -287,13 +287,20 @@ window.fetch = function(url, options) {
     function drawPie(canvas,rate){ if(!canvas) return; let ctx=canvas.getContext('2d'), size=canvas.width, cen=size/2, rad=size*0.38, angle=(rate/100)*Math.PI*2; ctx.clearRect(0,0,size,size); ctx.beginPath(); ctx.arc(cen,cen,rad,0,Math.PI*2); ctx.fillStyle='#e9edf2'; ctx.fill(); let fillColor= rate<60?'#e94f4f': rate<80?'#ffae42':'#2c9e6f'; ctx.beginPath(); ctx.moveTo(cen,cen); ctx.arc(cen,cen,rad,-Math.PI/2,-Math.PI/2+angle); ctx.closePath(); ctx.fillStyle=fillColor; ctx.fill(); ctx.beginPath(); ctx.arc(cen,cen,rad*0.55,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); }
     
     // ================= 错题数据 =================
+    let _fetchRetryCount = 0;
     async function fetchMistakes(){ 
         try{ 
-            let r=await fetch(API_BASE+ "?select=*", {
-                headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
-            }); 
+            // 使用 AbortController 设置 15 秒超时
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            let r = await fetch(API_BASE + "?select=*", {
+                headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
             if(!r.ok) throw new Error(`HTTP ${r.status}`); 
             let d=await r.json(); 
+            _fetchRetryCount = 0; // 成功则重置重试计数
             if(d && Array.isArray(d)) {
                 mistakeList = d.map(s=>({
                     id: generateSafeId(s.id || `m_${Date.now()}_${Math.random()}`),
@@ -310,14 +317,35 @@ window.fetch = function(url, options) {
                 }));
             } else {
                 mistakeList = [];
-                console.warn("API返回数据格式不正确，无 submissions 数组");
+                console.warn("API返回数据格式不正确:", d);
             }
             updateFilters(); 
             renderTagFilters(); 
             applyFilterAndRender(); 
         } catch(e){ 
             console.error("加载错题失败:", e);
-            container.innerHTML = `<div class="error-message">❌ 加载错题失败: ${e.message}<br>请检查网络连接或API地址是否正确。</div>`;
+            // 自动重试一次（仅首次失败时）
+            if(_fetchRetryCount < 1){
+                _fetchRetryCount++;
+                console.log("2秒后自动重试...");
+                container.innerHTML = `<div class="error-message">⏳ 正在重试连接服务器... (${e.message})</div>`;
+                setTimeout(() => fetchMistakes(), 2000);
+                return;
+            }
+            _fetchRetryCount = 0;
+            // 显示详细错误信息 + 重试按钮
+            let errorDetail = e.message || String(e);
+            let isNetworkError = errorDetail.includes('Failed to fetch') || errorDetail.includes('NetworkError') || errorDetail.includes('abort');
+            let hint = isNetworkError 
+                ? '可能是网络连接问题（国内访问海外服务器可能不稳定）<br>建议：① 使用VPN/代理 ② 稍后重试 ③ 检查网络设置'
+                : `错误类型: ${e.constructor.name}`;
+            container.innerHTML = `<div class="error-message">
+                <div style="font-size:1.1rem;margin-bottom:0.5rem">❌ 加载错题失败</div>
+                <div style="font-size:0.85rem;color:#888;margin-bottom:0.5rem">${errorDetail}</div>
+                <div style="font-size:0.85rem;margin-bottom:0.8rem">${hint}</div>
+                <button onclick="fetchMistakes()" style="padding:6px 20px;border:none;border-radius:20px;background:#4a90d9;color:#fff;cursor:pointer;font-size:0.9rem">🔄 重试</button>
+                <button onclick="window.open('${API_BASE}?select=id&limit=1','_blank')" style="margin-left:8px;padding:6px 20px;border:none;border-radius:20px;background:#666;color:#fff;cursor:pointer;font-size:0.9rem">🔗 测试API</button>
+            </div>`;
             mistakeList = [];
         } 
         try{ initSortable(); }catch(e){ console.warn("Sortable初始化失败:", e); }
