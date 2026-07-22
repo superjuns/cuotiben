@@ -5,24 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>智慧错题本 · 变式组卷 | 学情看板</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-<script>
-// === Supabase 配置（自动生成）===
-const SUPABASE_KEY = 'sb_publishable_EAfnJgOY7VsXPdZkEcrvBA_0qkNGlyD';
-const _origFetch = window.fetch;
-window.fetch = function(url, options) {
-    options = options || {};
-    var u = (typeof url === 'string') ? url : (url && url.url) || '';
-    if (u.indexOf('bjugehxenrvaqtodjkbc.supabase.co') !== -1) {
-        options.headers = Object.assign({}, options.headers || {}, {
-            'apikey': SUPABASE_KEY,
-            'Authorization': 'Bearer ' + SUPABASE_KEY,
-            'Content-Type': 'application/json'
-        });
-    }
-    return _origFetch.call(this, url, options);
-};
-// === Supabase 配置结束 ===
-</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mammoth@1.4.2/mammoth.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -199,6 +181,23 @@ window.fetch = function(url, options) {
 <div id="paperModal" class="modal"><div class="modal-content paper-modal"><h3>📄 试卷预览</h3><div class="paper-content-wrapper"><div id="paperContent" class="paper-export"></div></div><div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px"><button id="exportPdfBtn" class="btn-primary">📑 导出 PDF</button><button id="closePaperBtn" class="btn-outline">关闭</button></div></div></div>
 
 <script>
+// === Supabase 配置（自动生成）===
+const SUPABASE_KEY = 'sb_publishable_EAfnJgOY7VsXPdZkEcrvBA_0qkNGlyD';
+const _origFetch = window.fetch;
+window.fetch = function(url, options) {
+    options = options || {};
+    var u = (typeof url === 'string') ? url : (url && url.url) || '';
+    if (u.indexOf('bjugehxenrvaqtodjkbc.supabase.co') !== -1) {
+        options.headers = Object.assign({}, options.headers || {}, {
+            'apikey': SUPABASE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_KEY,
+            'Content-Type': 'application/json'
+        });
+    }
+    return _origFetch.call(this, url, options);
+};
+// === Supabase 配置结束 ===
+
     // ================= 全局变量 =================
     const API_BASE = "https://bjugehxenrvaqtodjkbc.supabase.co/rest/v1/ai_cuotiben";
     const IMPORTED_KEY = "imported_questions";
@@ -327,10 +326,7 @@ window.fetch = function(url, options) {
         if(unit&&!finalTags.includes(unit)) finalTags.push(unit); 
         let oid=generateOriginalId(text,gv,unit); 
         let needIll=needIllustrationCheckbox.checked; 
-        let fd=new FormData(); 
-        fd.append("text",text); 
-        fd.append("has_image",img?"true":"false"); 
-        let payload = {tags:finalTags.join(","),gradeVersion:gv,unit:unit,originalId:oid,need_illustration:needIll?"true":"false"};
+        let payload = {text:text,has_image:img?"true":"false",tags:finalTags.join(","),gradeVersion:gv,unit:unit,originalId:oid,need_illustration:needIll?"true":"false"};
         if(img) payload.image_base64 = img;
         try{ 
             await fetch(API_BASE,{method:"POST",body:JSON.stringify(payload)}); 
@@ -544,7 +540,7 @@ window.fetch = function(url, options) {
     function getSelected(){ let sel=[]; document.querySelectorAll('.pool-checkbox:checked').forEach(cb=>{ let idx=parseInt(cb.dataset.idx); if(importedQuestions[idx]) sel.push(importedQuestions[idx]); }); return sel; }
     function generatePaperFromImported(){ let selected=getSelected(); if(!selected.length){ alert("请至少选择一道题目"); return; } let now=new Date(); let dateStr=`${now.getMonth()+1}.${now.getDate()}`; let paperHtml=`<div class="export-title">${dateStr} 变式训练</div><div class="export-info"><div>姓名：__________</div><div>班级：__________</div></div>`; selected.forEach((item,idx)=>{ let tags=item.tags||[]; let tagText=tags.length?`（${tags.join('，')}）`:''; paperHtml+=`<div class="export-question"><div class="export-question-title">${idx+1}. ${tagText}</div><div class="export-question-content">${escapeHtml(item.text)}</div>${item.image?`<div><img src="${item.image}" class="export-question-image"></div>`:''}</div>`; }); currentPaperHtml=paperHtml; paperContent.innerHTML=paperHtml; paperModal.style.display="flex"; }
     function exportPdfDirect(){ if(!currentPaperHtml){ alert("请先生成试卷"); return; } let el=paperContent; let original=exportPdfBtn.innerText; exportPdfBtn.innerText="⏳ 生成中..."; exportPdfBtn.disabled=true; let opt={margin:[0.5,0.5,0.5,0.5], filename:`变式训练_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.pdf`, image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2,letterRendering:true,useCORS:true}, jsPDF:{unit:'in',format:'a4',orientation:'portrait'}}; html2pdf().set(opt).from(el).save().then(()=>{ exportPdfBtn.innerText=original; exportPdfBtn.disabled=false; }).catch(()=>{ alert("生成PDF失败"); exportPdfBtn.innerText=original; exportPdfBtn.disabled=false; }); }
-    async function importSelectedToDatabase(){ let selected=getSelected(); if(!selected.length){ alert("请至少选择一道题目"); return; } if(importToDatabaseBtn){ importToDatabaseBtn.disabled=true; importToDatabaseBtn.textContent="⏳ 导入中..."; } let suc=0,fail=0; for(let item of selected){ try{ let fd=new FormData(); fd.append("text",item.text); fd.append("has_image",item.image?"true":"false"); if(item.image) fd.append("image_base64",item.image); let allTags=[...(item.tags||[])]; if(item.gradeVersion&&!allTags.includes(item.gradeVersion)) allTags.push(item.gradeVersion); if(item.unit&&!allTags.includes(item.unit)) allTags.push(item.unit); fd.append("tags",allTags.join(",")); fd.append("gradeVersion",item.gradeVersion||""); fd.append("unit",item.unit||""); fd.append("correct_answer",item.answer||""); let oid=item.originalId||generateOriginalId(item.text,item.gradeVersion,item.unit); fd.append("originalId",oid); let r=await fetch("https://bjugehxenrvaqtodjkbc.supabase.co/rest/v1/question_bank",{method:"POST",body:fd}); if(r.ok) suc++; else fail++; }catch(e){ fail++; } } if(importToDatabaseBtn){ importToDatabaseBtn.disabled=false; importToDatabaseBtn.textContent="导入"; } alert(`导入完成：成功 ${suc} 题，失败 ${fail} 题`); }
+    async function importSelectedToDatabase(){ let selected=getSelected(); if(!selected.length){ alert("请至少选择一道题目"); return; } if(importToDatabaseBtn){ importToDatabaseBtn.disabled=true; importToDatabaseBtn.textContent="⏳ 导入中..."; } let suc=0,fail=0; for(let item of selected){ try{ let allTags=[...(item.tags||[])]; if(item.gradeVersion&&!allTags.includes(item.gradeVersion)) allTags.push(item.gradeVersion); if(item.unit&&!allTags.includes(item.unit)) allTags.push(item.unit); let oid=item.originalId||generateOriginalId(item.text,item.gradeVersion,item.unit); let payload={text:item.text,has_image:item.image?"true":"false",image_base64:item.image||null,tags:allTags.join(","),gradeVersion:item.gradeVersion||"",unit:item.unit||"",correct_answer:item.answer||"",originalId:oid}; let r=await fetch("https://bjugehxenrvaqtodjkbc.supabase.co/rest/v1/question_bank",{method:"POST",body:JSON.stringify(payload)}); if(r.ok) suc++; else fail++; }catch(e){ fail++; } } if(importToDatabaseBtn){ importToDatabaseBtn.disabled=false; importToDatabaseBtn.textContent="导入"; } alert(`导入完成：成功 ${suc} 题，失败 ${fail} 题`); }
     function importOriginalQuestion(cardId){ let card=mistakeList.find(m=>m.id===cardId); if(!card) return; let customTags=(card.tags||[]).filter(t=>t!==card.gradeVersion&&t!==card.unit); let oid=card.originalId||generateOriginalId(card.text,card.gradeVersion,card.unit); importedQuestions.push({id:Date.now()+'-'+Math.random(), text:card.text, image:(card.image_base64&&card.has_image)?card.image_base64:null, gradeVersion:card.gradeVersion||'', unit:card.unit||'', type:'original', tags:customTags, answer:'', originalId:oid }); updateImportBadge(); alert("已导入原题到题库"); }
     function importVariantQuestion(cardId,qIdx){ let card=mistakeList.find(m=>m.id===cardId); if(!card||!card.variants) return; let q=card.variants.questions[qIdx]; if(!q) return; let ill=card.variants.illustrations?.[qIdx]; let customTags=(card.tags||[]).filter(t=>t!==card.gradeVersion&&t!==card.unit); let ans=(card.variants.answers&&card.variants.answers[qIdx])?card.variants.answers[qIdx]:''; let oid=card.originalId||generateOriginalId(card.text,card.gradeVersion,card.unit); importedQuestions.push({id:Date.now()+'-'+Math.random(), text:q, image:ill||null, gradeVersion:card.gradeVersion||'', unit:card.unit||'', type:'variant', tags:customTags, answer:ans, originalId:oid }); updateImportBadge(); alert(`已导入变式题 ${qIdx+1}`); }
     
