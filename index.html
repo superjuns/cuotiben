@@ -271,8 +271,11 @@ window.fetch = function(url, options) {
     // ================= 安全ID生成函数 =================
     function generateSafeId(rawId) {
         if (!rawId) return 'id_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
-        let safe = rawId.replace(/[^a-zA-Z0-9_-]/g, '_');
-        if (!safe || /^\d/.test(safe)) safe = 'id_' + safe;
+        // Supabase 的自增主键是 number；先转为字符串，避免调用 replace 时中断整页加载。
+        let original = String(rawId);
+        let safe = original.replace(/[^a-zA-Z0-9_-]/g, '_');
+        // 为数字或被转义的 ID 加前缀，同时让 loadImageForItem 能还原数据库 ID。
+        if (!safe || /^\d/.test(safe) || safe !== original) safe = 'safe_' + (safe || Date.now());
         return safe;
     }
     
