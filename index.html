@@ -513,7 +513,8 @@ window.fetch = function(url, options) {
             b.textContent='⏳ 删除中...';
             b.disabled=true;
             try{
-                let r=await fetch(API_BASE+`?id=eq.${id}`,{method:'DELETE',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
+                let dbId=id.replace(/^safe_/,'');
+                let r=await fetch(API_BASE+`?id=eq.${dbId}`,{method:'DELETE',headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
                 if(r.ok){
                     mistakeList=mistakeList.filter(m=>m.id!==id);
                     applyFilterAndRender();
